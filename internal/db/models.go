@@ -31,6 +31,8 @@ type User struct {
 	PasswordHash string         `gorm:"not null" json:"-"`
 	RoleID       uuid.UUID      `gorm:"type:uuid;not null" json:"role_id"`
 	Active       bool           `gorm:"default:true" json:"active"`
+	MFAEnabled   bool           `gorm:"default:false" json:"mfa_enabled"`
+	MFASecret    string         `json:"-"`
 	LastLogin    *time.Time     `json:"last_login"`
 	CreatedAt    time.Time      `json:"created_at"`
 	UpdatedAt    time.Time      `json:"updated_at"`

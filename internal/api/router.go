@@ -56,11 +56,15 @@ func NewRouter(d Deps) *gin.Engine {
 	{
 		v1.POST("/auth/login", authH.Login)
 		v1.POST("/auth/refresh", authH.Refresh)
+		v1.POST("/auth/login/mfa", authH.MFALogin)
 
 		protected := v1.Group("")
 		protected.Use(auth.AuthMiddleware(d.JWTSecret))
 		{
 			protected.GET("/auth/me", authH.Me)
+			protected.POST("/auth/mfa/setup", authH.MFASetup)
+			protected.POST("/auth/mfa/enable", authH.MFAEnable)
+			protected.POST("/auth/mfa/disable", authH.MFADisable)
 			protected.GET("/stats", statsH.Get)
 			protected.GET("/admin/info", adminH.Info)
 

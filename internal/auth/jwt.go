@@ -82,3 +82,40 @@ func ValidateToken(jwtSecret, tokenStr string) (*Claims, error) {
 	}
 	return claims, nil
 }
+
+type MFAClaims struct {
+	UserID  uuid.UUID `json:"uid"`
+	Purpose string    `json:"purpose"`
+	jwt.RegisteredClaims
+}
+
+func GenerateMFAToken(jwtSecret string, userID uuid.UUID) (string, error) {
+	now := time.Now()
+	claims := MFAClaims{
+		UserID:  userID,
+		Purpose: "mfa",
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(now.Add(5 * time.Minute)),
+			IssuedAt:  jwt.NewNumericDate(now),
+			Subject:   userID.String(),
+		},
+	}
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(jwtSecret))
+}
+
+func ValidateMFAToken(jwtSecret, tokenStr string) (uuid.UUID, error) {
+	token, err := jwt.ParseWithClaims(tokenStr, &MFAClaims{}, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method")
+		}
+		return []byte(jwtSecret), nil
+	})
+	if err != nil {
+		return uuid.Nil, err
+	}
+	claims, ok := token.Claims.(*MFAClaims)
+	if !ok || !token.Valid || claims.Purpose != "mfa" {
+		return uuid.Nil, fmt.Errorf("invalid mfa token")
+	}
+	return claims.UserID, nil
+}

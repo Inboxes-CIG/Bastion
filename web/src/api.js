@@ -20,6 +20,13 @@ export async function api(path, opts = {}) {
 
 export const login = (email, password) =>
   api('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
+export const loginMFA = (mfa_token, code) =>
+  api('/auth/login/mfa', { method: 'POST', body: JSON.stringify({ mfa_token, code }) })
+export const mfaSetup = () => api('/auth/mfa/setup', { method: 'POST' })
+export const mfaEnable = (code) =>
+  api('/auth/mfa/enable', { method: 'POST', body: JSON.stringify({ code }) })
+export const mfaDisable = (code) =>
+  api('/auth/mfa/disable', { method: 'POST', body: JSON.stringify({ code }) })
 export const me = () => api('/auth/me')
 export const stats = () => api('/stats')
 

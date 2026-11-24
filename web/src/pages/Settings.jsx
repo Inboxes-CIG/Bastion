@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { me, api } from '../api.js'
+import { me, api, mfaSetup, mfaEnable, mfaDisable } from '../api.js'
 import { Card, Alert, Spinner, Button, Input, Select, Field, Badge, Toggle } from '../components/UI.jsx'
 
 function Row({ label, value }) {
@@ -30,6 +30,10 @@ export default function Settings() {
   const [cacheData, setCacheData] = useState(null)
   const [cacheCfg, setCacheCfg] = useState(null)
   const [cacheMsg, setCacheMsg] = useState('')
+  const [mfaData, setMfaData] = useState(null)
+  const [mfaCode, setMfaCode] = useState('')
+  const [mfaMsg, setMfaMsg] = useState('')
+  const [mfaBusy, setMfaBusy] = useState(false)
 
   const loadCerts = () => api('/certificates').then(d=>setCerts(d.data||[])).catch(()=>{})
   const [ver, setVer] = useState(null)
@@ -75,6 +79,32 @@ export default function Settings() {
   }
   const setCfg = (k, v) => setCacheCfg({ ...cacheCfg, [k]: v })
 
+  const startMFA = async () => {
+    setMfaMsg(''); setMfaBusy(true)
+    try {
+      const r = await mfaSetup()
+      setMfaData(r.data); setMfaCode('')
+    } catch(e) { setMfaMsg('Fehler: ' + e.message) } finally { setMfaBusy(false) }
+  }
+  const enableMFA = async () => {
+    setMfaMsg(''); setMfaBusy(true)
+    try {
+      await mfaEnable(mfaCode)
+      const d = await me()
+      setUser(d.data); setMfaData(null); setMfaCode('')
+      setMfaMsg('MFA wurde aktiviert.')
+    } catch(e) { setMfaMsg('Fehler: ' + e.message) } finally { setMfaBusy(false) }
+  }
+  const disableMFA = async () => {
+    setMfaMsg(''); setMfaBusy(true)
+    try {
+      await mfaDisable(mfaCode)
+      const d = await me()
+      setUser(d.data); setMfaCode('')
+      setMfaMsg('MFA wurde deaktiviert.')
+    } catch(e) { setMfaMsg('Fehler: ' + e.message) } finally { setMfaBusy(false) }
+  }
+
   return (
     <div className="max-w-3xl space-y-6">
       <Card title="Konto">
@@ -82,6 +112,50 @@ export default function Settings() {
         <Row label="Rolle" value={user.role} />
         <Row label="Tenant" value={user.tenant_id || 'System'} />
         <Row label="Status" value={user.active ? 'aktiv' : 'inaktiv'} />
+      </Card>
+
+      <Card title="Zwei-Faktor-Authentifizierung (MFA)" subtitle="Optionales TOTP-Login mit gängigen Authenticator-Apps">
+        <div className="flex items-center justify-between py-1">
+          <span className="text-sm text-slate-500">Status</span>
+          <Badge variant={user.mfa_enabled ? 'green' : 'slate'}>{user.mfa_enabled ? 'aktiv' : 'aus'}</Badge>
+        </div>
+
+        {mfaMsg && <div className={`text-sm mt-2 ${mfaMsg.startsWith('Fehler')?'text-red-600':'text-emerald-600'}`}>{mfaMsg}</div>}
+
+        {user.mfa_enabled ? (
+          <div className="mt-4 space-y-3">
+            <p className="text-sm text-slate-600">MFA ist aktiv. Zum Deaktivieren bitte einen aktuellen Code aus deiner Authenticator-App eingeben.</p>
+            <div className="flex flex-col sm:flex-row sm:items-end gap-2">
+              <Field label="Code" className="flex-1">
+                <Input value={mfaCode} onChange={e=>setMfaCode(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="000000" inputMode="numeric" />
+              </Field>
+              <Button variant="danger" onClick={disableMFA} disabled={mfaBusy || mfaCode.length < 6}>Deaktivieren</Button>
+            </div>
+          </div>
+        ) : mfaData ? (
+          <div className="mt-4 space-y-3">
+            <p className="text-sm text-slate-600">Scanne den QR-Code mit deiner Authenticator-App (z. B. Google Authenticator, Authy, 1Password) und bestätige anschließend mit dem angezeigten 6-stelligen Code.</p>
+            <div className="flex flex-col sm:flex-row gap-4 items-start">
+              <img src={mfaData.qr_data_url} alt="MFA QR-Code" className="w-40 h-40 rounded-lg border border-slate-200 bg-white p-1" />
+              <div className="text-sm text-slate-600">
+                <div className="mb-1">Manueller Schlüssel:</div>
+                <code className="block break-all rounded-lg bg-slate-100 px-3 py-2 font-mono text-xs text-slate-800">{mfaData.secret}</code>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-end gap-2">
+              <Field label="Code aus der App" className="flex-1">
+                <Input value={mfaCode} onChange={e=>setMfaCode(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="000000" inputMode="numeric" autoFocus />
+              </Field>
+              <Button variant="success" onClick={enableMFA} disabled={mfaBusy || mfaCode.length < 6}>Aktivieren</Button>
+              <Button variant="secondary" onClick={()=>{ setMfaData(null); setMfaCode(''); setMfaMsg('') }}>Abbrechen</Button>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-4">
+            <Button onClick={startMFA} disabled={mfaBusy}>{mfaBusy ? 'Vorbereiten...' : 'MFA aktivieren'}</Button>
+            <div className="mt-3 text-xs text-slate-400">Unterstützt TOTP (RFC 6238) – kompatibel mit allen gängigen Authenticator-Apps. Der Schlüssel wird verschlüsselt gespeichert.</div>
+          </div>
+        )}
       </Card>
 
       <Card title="GUI-Zertifikat (Let's Encrypt)" subtitle="Gültiges TLS-Zertifikat für die Admin-Oberfläche">
