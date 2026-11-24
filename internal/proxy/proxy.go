@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/inboxes-cig/bastion/internal/accesslog"
+	"github.com/inboxes-cig/bastion/internal/autoban"
 	"github.com/inboxes-cig/bastion/internal/cert"
 	"github.com/inboxes-cig/bastion/internal/cache"
 	"github.com/inboxes-cig/bastion/internal/crowdsec"
@@ -40,6 +41,7 @@ type Server struct {
 	HTTP3Enabled bool
 	Access       *siteaccess.Cache
 	Lockout      *siteaccess.Lockout
+	AutoBan      *autoban.Detector
 	HTTPAddr   string
 	HTTPSAddr  string
 	AdminHosts map[string]bool
@@ -204,12 +206,16 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 		Referer:   r.Referer(),
 		Proto:     r.Proto,
 	}
+	allowed := false
 	defer func() {
 		entry.Status = sw.status
 		entry.Bytes = sw.bytes
 		entry.DurationMs = time.Since(start).Milliseconds()
 		if !skipLog && s.Log != nil {
 			s.Log.Record(entry)
+		}
+		if s.AutoBan != nil && entry.Status == 404 && !entry.Admin {
+			s.AutoBan.Observe(entry.ClientIP, entry.Status, entry.Admin, allowed)
 		}
 	}()
 
@@ -239,7 +245,6 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	allowed := false
 	if s.IPList != nil {
 		if s.IPList.IsDenied(entry.ClientIP) {
 			entry.Blocked = true

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/inboxes-cig/bastion/internal/accesslog"
+	"github.com/inboxes-cig/bastion/internal/autoban"
 	"github.com/inboxes-cig/bastion/internal/api"
 	"os"
 	"os/signal"
@@ -112,6 +113,39 @@ func main() {
 	ps.HTTP3Enabled = h3
 	ps.Access = access
 	ps.Lockout = lockout
+
+	autoBanEnabled := true
+	if cfg.Security.AutoBan404.Enabled != nil {
+		autoBanEnabled = *cfg.Security.AutoBan404.Enabled
+	}
+	ps.AutoBan = autoban.New(autoban.Config{
+		Enabled:       autoBanEnabled,
+		Threshold:     cfg.Security.AutoBan404.Threshold,
+		WindowSeconds: cfg.Security.AutoBan404.WindowSeconds,
+	}, func(ip string) {
+		var existing db.IPListEntry
+		if err := database.Where("kind = ? AND value = ?", "deny", ip).First(&existing).Error; err == nil {
+			return
+		}
+		if err := database.Create(&db.IPListEntry{Kind: "deny", Value: ip, Note: "404"}).Error; err != nil {
+			log.Printf("auto-ban %s: %v", ip, err)
+			return
+		}
+		_ = database.Create(&db.AuditLog{
+			Action:     "auto_ban",
+			Resource:   "ip",
+			ResourceID: ip,
+			Method:     "AUTO",
+			Path:       "/",
+			Status:     403,
+			IP:         ip,
+			Details:    "blocked after repeated 404 responses",
+		}).Error
+		if err := ipL.Reload(); err != nil {
+			log.Printf("auto-ban reload ip list: %v", err)
+		}
+		log.Printf("auto-ban: blocked %s after repeated 404 responses", ip)
+	})
 	go func() {
 		if err := ps.Start(); err != nil {
 			log.Fatalf("proxy: %v", err)

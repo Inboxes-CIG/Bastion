@@ -88,6 +88,11 @@ cache:
   max_entries: 500
   max_object_kb: 256
   max_total_mb: 64
+security:
+  auto_ban_404:
+    enabled: true
+    threshold: 50
+    window_seconds: 600
 EOF
   chmod 640 "$CONFIG_DIR/config.yaml"
   chown root:"$APP_USER" "$CONFIG_DIR/config.yaml"

@@ -46,6 +46,13 @@ type Config struct {
 		MaxObjectKB int   `yaml:"max_object_kb"`
 		MaxTotalMB  int   `yaml:"max_total_mb"`
 	} `yaml:"cache"`
+	Security struct {
+		AutoBan404 struct {
+			Enabled       *bool `yaml:"enabled"`
+			Threshold     int   `yaml:"threshold"`
+			WindowSeconds int   `yaml:"window_seconds"`
+		} `yaml:"auto_ban_404"`
+	} `yaml:"security"`
 }
 
 func Load(path string) (*Config, error) {
@@ -75,6 +82,12 @@ func Load(path string) (*Config, error) {
 	}
 	if c.Logging.RetentionDays == 0 {
 		c.Logging.RetentionDays = 30
+	}
+	if c.Security.AutoBan404.Threshold == 0 {
+		c.Security.AutoBan404.Threshold = 50
+	}
+	if c.Security.AutoBan404.WindowSeconds == 0 {
+		c.Security.AutoBan404.WindowSeconds = 600
 	}
 	return &c, nil
 }
