@@ -52,9 +52,9 @@ function Tri({ label, value, onChange, templateValue, inheritLabel = 'vom Templa
       <select value={value===null?'inherit':value?'on':'off'}
         onChange={e=>{const v=e.target.value; onChange(v==='inherit'?null:v==='on')}}
         className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30">
-        <option value="inherit">Inherit</option>
-        <option value="on">On</option>
-        <option value="off">Off</option>
+        <option value="inherit">{t('Inherit')}</option>
+        <option value="on">{t('On')}</option>
+        <option value="off">{t('Off')}</option>
       </select>
     </div>
   )
@@ -337,16 +337,16 @@ export default function SiteDetail() {
         <div className="p-6 space-y-5">
           {tab === 'general' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <Field label="Primary Domain"><Input value={form.domain} onChange={e=>setForm({...form,domain:e.target.value})} placeholder="example.com" /></Field>
+              <Field label={t('Primary Domain')}><Input value={form.domain} onChange={e=>setForm({...form,domain:e.target.value})} placeholder="example.com" /></Field>
               <Field label="Tenant">
                 <Select value={form.tenant_id} onChange={e=>setForm({...form,tenant_id:e.target.value})}>
-                  <option value="">— wählen —</option>
+                  <option value="">{t('— wählen —')}</option>
                   {tenants.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
                 </Select>
               </Field>
               <Field label="Template">
                 <Select value={form.template_id} onChange={e=>setForm({...form,template_id:e.target.value})}>
-                  <option value="">Kein Template</option>
+                  <option value="">{t('Kein Template')}</option>
                   {templates.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
                 </Select>
               </Field>
@@ -358,8 +358,8 @@ export default function SiteDetail() {
 
           {tab === 'domains' && (
             <div className="space-y-5">
-              <Field label="Primary Domain" hint="Die Haupt-Domain dieser Site."><Input value={form.domain} onChange={e=>setForm({...form,domain:e.target.value})} /></Field>
-              <Field label="Alias-Domains" hint="Kommagetrennt, z.B. www.example.com, shop.example.com"><Input value={form.extra_domains} onChange={e=>setForm({...form,extra_domains:e.target.value})} placeholder="www.example.com, api.example.com" /></Field>
+              <Field label={t('Primary Domain')} hint={t('Die Haupt-Domain dieser Site.')}><Input value={form.domain} onChange={e=>setForm({...form,domain:e.target.value})} /></Field>
+              <Field label={t('Alias-Domains')} hint={t('Kommagetrennt, z.B. www.example.com, shop.example.com')}><Input value={form.extra_domains} onChange={e=>setForm({...form,extra_domains:e.target.value})} placeholder="www.example.com, api.example.com" /></Field>
               <Alert variant="info">Nach Änderung der Domains speichern und im Tab „TLS &amp; Zertifikat" neu ausstellen, damit die neuen Domains im Zertifikat enthalten sind.</Alert>
             </div>
           )}
@@ -368,14 +368,14 @@ export default function SiteDetail() {
             <div className="space-y-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="font-semibold text-slate-800">Pfad-Locations</div>
-                  <div className="text-sm text-slate-500">Eigene Konfiguration für Unterpfade. Längster passender Prefix gewinnt.</div>
+                  <div className="font-semibold text-slate-800">{t('Pfad-Locations')}</div>
+                  <div className="text-sm text-slate-500">{t('Eigene Konfiguration für Unterpfade. Längster passender Prefix gewinnt.')}</div>
                 </div>
-                <Button onClick={()=>{ setLocErr(''); setLocForm(emptyLocation()) }} disabled={isNew}>Location hinzufügen</Button>
+                <Button onClick={()=>{ setLocErr(''); setLocForm(emptyLocation()) }} disabled={isNew}>{t('Location hinzufügen')}</Button>
               </div>
 
-              {isNew ? <Alert variant="info">Site zuerst speichern, dann Locations anlegen.</Alert> : locations.length === 0 ? (
-                <div className="text-sm text-slate-400 rounded-lg border border-dashed border-slate-200 p-6 text-center">Noch keine Locations. Ohne Location gilt die Site-Konfiguration für alle Pfade.</div>
+              {isNew ? <Alert variant="info">{t('Site zuerst speichern, dann Locations anlegen.')}</Alert> : locations.length === 0 ? (
+                <div className="text-sm text-slate-400 rounded-lg border border-dashed border-slate-200 p-6 text-center">{t('Noch keine Locations. Ohne Location gilt die Site-Konfiguration für alle Pfade.')}</div>
               ) : (
                 <div className="divide-y divide-slate-100 rounded-lg border border-slate-200">
                   {locations.map(l => (
@@ -383,13 +383,13 @@ export default function SiteDetail() {
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-mono text-sm font-semibold text-slate-800">{l.path_prefix}</span>
-                          {!l.enabled && <Badge variant="slate">deaktiviert</Badge>}
+                          {!l.enabled && <Badge variant="slate">{t('deaktiviert')}</Badge>}
                           {l.auth_enabled !== null && <Badge variant={l.auth_enabled?'green':'slate'}>Auth {l.auth_enabled?'an':'aus'}</Badge>}
                           {l.cache_enabled !== null && <Badge variant={l.cache_enabled?'blue':'slate'}>Cache {l.cache_enabled?'an':'aus'}</Badge>}
                           {l.geoip_enabled !== null && <Badge variant={l.geoip_enabled?'amber':'slate'}>GeoIP {l.geoip_enabled?'an':'aus'}</Badge>}
                           {l.rate_limit_rps !== null && <Badge variant="indigo">Limit {l.rate_limit_rps} rps</Badge>}
-                          {l.auth_users_mode === 'own' && <Badge variant="blue">eigene Benutzer</Badge>}
-                          {l.ip_rules_mode === 'own' && <Badge variant="blue">eigene IP-Regeln</Badge>}
+                          {l.auth_users_mode === 'own' && <Badge variant="blue">{t('eigene Benutzer')}</Badge>}
+                          {l.ip_rules_mode === 'own' && <Badge variant="blue">{t('eigene IP-Regeln')}</Badge>}
                         </div>
                         <div className="text-xs text-slate-500 mt-1 truncate">
                           Upstream: {l.upstream_url || 'von der Site'} {l.upstream_host ? '· Host: ' + l.upstream_host : ''}
@@ -413,14 +413,14 @@ export default function SiteDetail() {
               <div className="rounded-lg border border-slate-200 p-4">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="font-semibold text-slate-800">Let's Encrypt</h4>
-                  {currentCert ? <Badge variant="green">Zertifikat aktiv</Badge> : <Badge variant="slate">kein Zertifikat</Badge>}
+                  {currentCert ? <Badge variant="green">{t('Zertifikat aktiv')}</Badge> : <Badge variant="slate">{t('kein Zertifikat')}</Badge>}
                 </div>
                 {currentCert && (
                   <div className="text-sm text-slate-600 mb-3">
                     {currentCert.domain} · gültig bis {currentCert.not_after ? new Date(currentCert.not_after).toLocaleDateString() : '—'} · {currentCert.issuer}
                   </div>
                 )}
-                <div className="text-sm text-slate-600 mb-1">Domains im Zertifikat (SAN):</div>
+                <div className="text-sm text-slate-600 mb-1">{t('Domains im Zertifikat (SAN):')}</div>
                 <div className="flex flex-wrap gap-1 mb-3">
                   {issueDomains.length === 0 && <span className="text-sm text-slate-400">—</span>}
                   {issueDomains.map(d => (
@@ -431,11 +431,11 @@ export default function SiteDetail() {
                   <div className="mb-3"><Alert variant="warn">Eine der Domains ist lokal/Test (z.B. .local). Let's Encrypt kann solche Domains nicht validieren. Entferne sie, sonst schlägt die Ausstellung fehl.</Alert></div>
                 )}
                 {isNew ? (
-                  <Alert variant="info">Site zuerst speichern, dann Zertifikat ausstellen.</Alert>
+                  <Alert variant="info">{t('Site zuerst speichern, dann Zertifikat ausstellen.')}</Alert>
                 ) : (
                   <div className="flex items-end gap-2">
                     <div className="flex-1">
-                      <label className="text-sm text-slate-600 mb-1 block">E-Mail für ACME</label>
+                      <label className="text-sm text-slate-600 mb-1 block">{t('E-Mail für ACME')}</label>
                       <Input value={leEmail} onChange={e=>setLeEmail(e.target.value)} placeholder="admin@example.com" />
                     </div>
                     <Button variant="success" onClick={issueLE} disabled={leBusy || !leEmail}>
@@ -446,9 +446,9 @@ export default function SiteDetail() {
                 {leMsg && <div className={`text-sm mt-2 ${leMsg.startsWith('Fehler')?'text-red-600':'text-emerald-600'}`}>{leMsg}</div>}
               </div>
 
-              <Field label="Manuelles Zertifikat">
+              <Field label={t('Manuelles Zertifikat')}>
                 <Select value={form.cert_id||''} onChange={e=>setForm({...form,cert_id:e.target.value})}>
-                  <option value="">Kein Zertifikat</option>
+                  <option value="">{t('Kein Zertifikat')}</option>
                   {certs.map(c=><option key={c.id} value={c.id}>{c.domain} ({c.source})</option>)}
                 </Select>
               </Field>
@@ -456,7 +456,7 @@ export default function SiteDetail() {
               <div className="divide-y divide-slate-100">
                 <Tri label="Force HTTPS" value={form.force_https} onChange={v=>setForm({...form,force_https:v})} templateValue={tmpl?.force_https} />
                 <Tri label="HSTS" value={form.hsts_enabled} onChange={v=>setForm({...form,hsts_enabled:v})} templateValue={tmpl?.hsts_enabled} />
-                <div className="pt-3"><InheritNumber label="HSTS Max Age (s)" value={form.hsts_max_age} onChange={v=>setForm({...form,hsts_max_age:v})} templateValue={tmpl?.hsts_max_age} /></div>
+                <div className="pt-3"><InheritNumber label={t('HSTS Max Age (s)')} value={form.hsts_max_age} onChange={v=>setForm({...form,hsts_max_age:v})} templateValue={tmpl?.hsts_max_age} /></div>
               </div>
             </div>
           )}
@@ -472,27 +472,26 @@ export default function SiteDetail() {
 
           {tab === 'geoip' && (
             <div className="space-y-5">
-              <Tri label="GeoIP Filter" value={form.geoip_enabled} onChange={v=>setForm({...form,geoip_enabled:v})} templateValue={tmpl?.geoip_enabled} />
-              <Field label="Modus" hint="Block: ausgewählte Länder sperren · Allow: nur ausgewählte Länder erlauben">
+              <Tri label={t('GeoIP Filter')} value={form.geoip_enabled} onChange={v=>setForm({...form,geoip_enabled:v})} templateValue={tmpl?.geoip_enabled} />
+              <Field label={t('Modus')} hint={t('Block: ausgewählte Länder sperren · Allow: nur ausgewählte Länder erlauben')}>
                 <Select value={form.geoip_mode||''} onChange={e=>setForm({...form,geoip_mode:e.target.value||null})}>
                   <option value="">Inherit {tmpl?.geoip_mode?('('+tmpl.geoip_mode+')'):''}</option>
-                  <option value="block">Block (ausgewählte sperren)</option>
-                  <option value="allow">Allow (nur ausgewählte erlauben)</option>
+                  <option value="block">{t('Block (ausgewählte sperren)')}</option>
+                  <option value="allow">{t('Allow (nur ausgewählte erlauben)')}</option>
                 </Select>
               </Field>
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-sm font-medium text-slate-700">Länder</label>
                   <label className="flex items-center gap-1 text-xs text-slate-500">
-                    <input type="checkbox" checked={form.geoip_countries===null} onChange={e=>setForm({...form, geoip_countries: e.target.checked?null:[]})} /> vom Template erben
-                  </label>
+                    <input type="checkbox" checked={form.geoip_countries===null} onChange={e=>setForm({...form, geoip_countries: e.target.checked?null:[]})} />{t('vom Template erben')}</label>
                 </div>
                 {form.geoip_countries===null ? (
                   <div className="text-sm text-slate-400 px-3 py-2 border border-dashed border-slate-200 rounded-lg">
                     {(tmpl?.geoip_countries||[]).length ? (tmpl.geoip_countries||[]).join(', ') : '— keine (Template)'}
                   </div>
                 ) : (
-                  <MultiSelect options={countries} value={form.geoip_countries} onChange={v=>setForm({...form,geoip_countries:v})} placeholder="Länder auswählen..." />
+                  <MultiSelect options={countries} value={form.geoip_countries} onChange={v=>setForm({...form,geoip_countries:v})} placeholder={t('Länder auswählen...')} />
                 )}
                 {form.geoip_countries!==null && form.geoip_countries.length>0 && (
                   <div className="text-xs text-slate-400 mt-1">{form.geoip_countries.length} Länder ausgewählt</div>
@@ -504,14 +503,14 @@ export default function SiteDetail() {
 
           {tab === 'cache' && (
             <div className="space-y-5">
-              <Tri label="Cache aktiv" value={form.cache_enabled} onChange={v=>setForm({...form,cache_enabled:v})} templateValue={tmpl?.cache_enabled} />
+              <Tri label={t('Cache aktiv')} value={form.cache_enabled} onChange={v=>setForm({...form,cache_enabled:v})} templateValue={tmpl?.cache_enabled} />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <InheritNumber label="TTL (Sekunden, Fallback)" value={form.cache_ttl} onChange={v=>setForm({...form,cache_ttl:v})} templateValue={tmpl?.cache_ttl} />
-                <InheritNumber label="Max. Objektgröße (KB)" value={form.cache_max_object_kb} onChange={v=>setForm({...form,cache_max_object_kb:v})} templateValue={tmpl?.cache_max_object_kb} />
+                <InheritNumber label={t('TTL (Sekunden, Fallback)')} value={form.cache_ttl} onChange={v=>setForm({...form,cache_ttl:v})} templateValue={tmpl?.cache_ttl} />
+                <InheritNumber label={t('Max. Objektgröße (KB)')} value={form.cache_max_object_kb} onChange={v=>setForm({...form,cache_max_object_kb:v})} templateValue={tmpl?.cache_max_object_kb} />
               </div>
               <div className="rounded-lg border border-slate-200 p-4">
-                <div className="text-sm text-slate-600 mb-2">Zwischengespeicherte Antworten dieser Site sofort verwerfen:</div>
-                {isNew ? <div className="text-sm text-slate-400">Site zuerst speichern.</div> : (
+                <div className="text-sm text-slate-600 mb-2">{t('Zwischengespeicherte Antworten dieser Site sofort verwerfen:')}</div>
+                {isNew ? <div className="text-sm text-slate-400">{t('Site zuerst speichern.')}</div> : (
                   <div className="flex items-center gap-3">
                     <Button variant="secondary" onClick={clearSiteCache} disabled={cacheBusy}>{cacheBusy ? '...' : 'Cache dieser Site leeren'}</Button>
                     {cacheMsg && <span className={`text-sm ${cacheMsg.startsWith('Fehler')?'text-red-600':'text-emerald-600'}`}>{cacheMsg}</span>}
@@ -525,9 +524,9 @@ export default function SiteDetail() {
           {tab === 'access' && (
             <div className="space-y-6">
               {!isNew && locations.length > 0 && (
-                <Field label="Zugriffsebene" hint="Benutzer und IP-Regeln getrennt für die Site oder eine Location verwalten.">
+                <Field label={t('Zugriffsebene')} hint={t('Benutzer und IP-Regeln getrennt für die Site oder eine Location verwalten.')}>
                   <Select value={accessScope} onChange={e=>{ setAccessScope(e.target.value); setUserEditing(null); setUserForm({ username:'', password:'', active:true }); setRuleEditing(null); setRuleForm({ kind:'allow', value:'', note:'' }) }}>
-                    <option value="site">Site (Standard)</option>
+                    <option value="site">{t('Site (Standard)')}</option>
                     {locations.map(l => <option key={l.id} value={l.id}>Location {l.path_prefix}{l.enabled ? '' : ' (deaktiviert)'}</option>)}
                   </Select>
                 </Field>
@@ -547,23 +546,23 @@ export default function SiteDetail() {
                 )
               })()}
               {accessScope === 'site' ? (
-                <Tri label="Authentifizierung (Basic Auth)" value={form.auth_enabled} onChange={v=>setForm({...form,auth_enabled:v})} templateValue={tmpl?.auth_enabled} />
+                <Tri label={t('Authentifizierung (Basic Auth)')} value={form.auth_enabled} onChange={v=>setForm({...form,auth_enabled:v})} templateValue={tmpl?.auth_enabled} />
               ) : (
                 <Alert variant="info">Basic Auth sowie „eigene/geerbte Benutzer &amp; IP-Regeln" stellst du im Tab <b>Locations</b> ein. Hier verwaltest du die Einträge der gewählten Location.</Alert>
               )}
-              {isNew ? <Alert variant="info">Site zuerst speichern, dann Benutzer und IP-Regeln pflegen.</Alert> : (
+              {isNew ? <Alert variant="info">{t('Site zuerst speichern, dann Benutzer und IP-Regeln pflegen.')}</Alert> : (
                 <>
                   <div className="rounded-lg border border-slate-200 p-4">
-                    <h4 className="font-semibold text-slate-800 mb-2">Site-Benutzer</h4>
+                    <h4 className="font-semibold text-slate-800 mb-2">{t('Site-Benutzer')}</h4>
                     <form onSubmit={saveUser} className="flex flex-col sm:flex-row gap-2 mb-3">
-                      <Input value={userForm.username} onChange={e=>setUserForm({...userForm,username:e.target.value})} placeholder="Benutzername" className="flex-1" required />
+                      <Input value={userForm.username} onChange={e=>setUserForm({...userForm,username:e.target.value})} placeholder={t('Benutzername')} className="flex-1" required />
                       <Input type="password" value={userForm.password} onChange={e=>setUserForm({...userForm,password:e.target.value})} placeholder={userEditing ? 'Neues Passwort (optional)' : 'Passwort'} className="flex-1" required={!userEditing} />
-                      <Toggle checked={userForm.active} onChange={v=>setUserForm({...userForm,active:v})} label="aktiv" />
+                      <Toggle checked={userForm.active} onChange={v=>setUserForm({...userForm,active:v})} label={t('aktiv')} />
                       <Button type="submit" variant="success">{userEditing ? 'Speichern' : 'Hinzufügen'}</Button>
-                      {userEditing && <Button type="button" variant="secondary" onClick={()=>{setUserEditing(null);setUserForm({username:'',password:'',active:true})}}>Abbrechen</Button>}
+                      {userEditing && <Button type="button" variant="secondary" onClick={()=>{setUserEditing(null);setUserForm({username:'',password:'',active:true})}}>{t('Abbrechen')}</Button>}
                     </form>
                     {userErr && <div className="text-sm text-red-600 mb-2">{userErr}</div>}
-                    {siteUsers.length === 0 ? <div className="text-sm text-slate-400">Keine Benutzer.</div> : (
+                    {siteUsers.length === 0 ? <div className="text-sm text-slate-400">{t('Keine Benutzer.')}</div> : (
                       <div className="divide-y divide-slate-100">
                         {siteUsers.map(u => (
                           <div key={u.id} className="flex items-center justify-between py-2">
@@ -582,16 +581,16 @@ export default function SiteDetail() {
                   </div>
 
                   <div className="rounded-lg border border-slate-200 p-4">
-                    <h4 className="font-semibold text-slate-800 mb-2">IP-Regeln (Allow / Deny)</h4>
+                    <h4 className="font-semibold text-slate-800 mb-2">{t('IP-Regeln (Allow / Deny)')}</h4>
                     <form onSubmit={saveRule} className="flex flex-col sm:flex-row gap-2 mb-3">
                       <Select value={ruleForm.kind} onChange={e=>setRuleForm({...ruleForm,kind:e.target.value})}><option value="allow">Allow</option><option value="deny">Deny</option></Select>
-                      <Input value={ruleForm.value} onChange={e=>setRuleForm({...ruleForm,value:e.target.value})} placeholder="IP oder CIDR" className="flex-1" required />
-                      <Input value={ruleForm.note} onChange={e=>setRuleForm({...ruleForm,note:e.target.value})} placeholder="Notiz" className="sm:w-40" />
+                      <Input value={ruleForm.value} onChange={e=>setRuleForm({...ruleForm,value:e.target.value})} placeholder={t('IP oder CIDR')} className="flex-1" required />
+                      <Input value={ruleForm.note} onChange={e=>setRuleForm({...ruleForm,note:e.target.value})} placeholder={t('Notiz')} className="sm:w-40" />
                       <Button type="submit" variant="success">{ruleEditing ? 'Speichern' : 'Hinzufügen'}</Button>
-                      {ruleEditing && <Button type="button" variant="secondary" onClick={()=>{setRuleEditing(null);setRuleForm({kind:'allow',value:'',note:''})}}>Abbrechen</Button>}
+                      {ruleEditing && <Button type="button" variant="secondary" onClick={()=>{setRuleEditing(null);setRuleForm({kind:'allow',value:'',note:''})}}>{t('Abbrechen')}</Button>}
                     </form>
                     {ruleErr && <div className="text-sm text-red-600 mb-2">{ruleErr}</div>}
-                    {siteRules.length === 0 ? <div className="text-sm text-slate-400">Keine Regeln.</div> : (
+                    {siteRules.length === 0 ? <div className="text-sm text-slate-400">{t('Keine Regeln.')}</div> : (
                       <div className="divide-y divide-slate-100">
                         {siteRules.map(r => (
                           <div key={r.id} className="flex items-center justify-between py-2">
@@ -619,12 +618,12 @@ export default function SiteDetail() {
           {tab === 'advanced' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <InheritText label="Upstream URL" value={form.upstream_url} onChange={v=>setForm({...form,upstream_url:v})} templateValue={tmpl?.upstream_url} placeholder="http://backend:8080" />
-              <InheritText label="Upstream Host / Name (Host-Header)" value={form.upstream_host} onChange={v=>setForm({...form,upstream_host:v})} templateValue={tmpl?.upstream_host} placeholder="z.B. backend.internal (leer = Original-Host)" />
-              <Tri label="Upstream-TLS-Zertifikat ignorieren" value={form.upstream_insecure_skip_verify} onChange={v=>setForm({...form,upstream_insecure_skip_verify:v})} templateValue={tmpl?.upstream_insecure_skip_verify} />
+              <InheritText label={t('Upstream Host / Name (Host-Header)')} value={form.upstream_host} onChange={v=>setForm({...form,upstream_host:v})} templateValue={tmpl?.upstream_host} placeholder={t('z.B. backend.internal (leer = Original-Host)')} />
+              <Tri label={t('Upstream-TLS-Zertifikat ignorieren')} value={form.upstream_insecure_skip_verify} onChange={v=>setForm({...form,upstream_insecure_skip_verify:v})} templateValue={tmpl?.upstream_insecure_skip_verify} />
               <div className="sm:col-span-2"><Alert variant="warn">Nur für Upstreams mit selbstsigniertem Zertifikat. Deaktiviert die TLS-Zertifikatsprüfung zum Backend.</Alert></div>
-              <InheritNumber label="Rate Limit RPS" value={form.rate_limit_rps} onChange={v=>setForm({...form,rate_limit_rps:v})} templateValue={tmpl?.rate_limit_rps} />
-              <InheritNumber label="Rate Limit Burst" value={form.rate_limit_burst} onChange={v=>setForm({...form,rate_limit_burst:v})} templateValue={tmpl?.rate_limit_burst} />
-              <InheritNumber label="Max Body Size (MB)" value={form.max_body_size_mb} onChange={v=>setForm({...form,max_body_size_mb:v})} templateValue={tmpl?.max_body_size_mb} />
+              <InheritNumber label={t('Rate Limit RPS')} value={form.rate_limit_rps} onChange={v=>setForm({...form,rate_limit_rps:v})} templateValue={tmpl?.rate_limit_rps} />
+              <InheritNumber label={t('Rate Limit Burst')} value={form.rate_limit_burst} onChange={v=>setForm({...form,rate_limit_burst:v})} templateValue={tmpl?.rate_limit_burst} />
+              <InheritNumber label={t('Max Body Size (MB)')} value={form.max_body_size_mb} onChange={v=>setForm({...form,max_body_size_mb:v})} templateValue={tmpl?.max_body_size_mb} />
             </div>
           )}
         </div>
@@ -636,7 +635,7 @@ export default function SiteDetail() {
         title={locForm?.id ? 'Location bearbeiten' : 'Neue Location'}
         size="lg"
         footer={<>
-          <Button variant="secondary" onClick={()=>setLocForm(null)}>Abbrechen</Button>
+          <Button variant="secondary" onClick={()=>setLocForm(null)}>{t('Abbrechen')}</Button>
           <Button onClick={saveLocation} disabled={locBusy || !locForm?.path_prefix}>{locBusy ? 'Speichern...' : 'Speichern'}</Button>
         </>}
       >
@@ -644,72 +643,71 @@ export default function SiteDetail() {
           <form onSubmit={(e)=>{ e.preventDefault(); saveLocation() }} className="space-y-5">
             {locErr && <Alert variant="error">{locErr}</Alert>}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Pfad-Prefix" hint="Muss mit / beginnen, z. B. /api oder /static">
+              <Field label={t('Pfad-Prefix')} hint={t('Muss mit / beginnen, z. B. /api oder /static')}>
                 <Input value={locForm.path_prefix} onChange={e=>setLocForm({...locForm,path_prefix:e.target.value})} placeholder="/api" required />
               </Field>
               <Field label="Status">
                 <div className="pt-2"><Toggle checked={!!locForm.enabled} onChange={v=>setLocForm({...locForm,enabled:v})} label={locForm.enabled?'Aktiv':'Deaktiviert'} /></div>
               </Field>
               <InheritText label="Upstream URL" value={locForm.upstream_url} onChange={v=>setLocForm({...locForm,upstream_url:v})} templateValue={inherited('upstream_url')} placeholder="http://backend:8080" />
-              <InheritText label="Upstream Host / Name" value={locForm.upstream_host} onChange={v=>setLocForm({...locForm,upstream_host:v})} templateValue={inherited('upstream_host')} placeholder="leer = Site-Wert" />
-              <Tri label="Upstream-TLS-Zertifikat ignorieren" value={locForm.upstream_insecure_skip_verify} onChange={v=>setLocForm({...locForm,upstream_insecure_skip_verify:v})} templateValue={inherited('upstream_insecure_skip_verify')} inheritLabel="von der Site" />
+              <InheritText label={t('Upstream Host / Name')} value={locForm.upstream_host} onChange={v=>setLocForm({...locForm,upstream_host:v})} templateValue={inherited('upstream_host')} placeholder={t('leer = Site-Wert')} />
+              <Tri label={t('Upstream-TLS-Zertifikat ignorieren')} value={locForm.upstream_insecure_skip_verify} onChange={v=>setLocForm({...locForm,upstream_insecure_skip_verify:v})} templateValue={inherited('upstream_insecure_skip_verify')} inheritLabel="von der Site" />
             </div>
 
             <div className="rounded-lg border border-slate-200 p-4 space-y-1">
-              <div className="text-sm font-semibold text-slate-800 mb-1">Zugriff & Limit</div>
+              <div className="text-sm font-semibold text-slate-800 mb-1">{t('Zugriff & Limit')}</div>
               <Tri label="Basic Auth" value={locForm.auth_enabled} onChange={v=>setLocForm({...locForm,auth_enabled:v})} templateValue={inherited('auth_enabled')} inheritLabel="von der Site" />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                <Field label="Auth-Benutzer" hint="Eigene Benutzer oder die der Site verwenden">
+                <Field label={t('Auth-Benutzer')} hint={t('Eigene Benutzer oder die der Site verwenden')}>
                   <Select value={locForm.auth_users_mode||'inherit'} onChange={e=>setLocForm({...locForm,auth_users_mode:e.target.value})}>
-                    <option value="inherit">Von der Site erben</option>
-                    <option value="own">Eigene Benutzer</option>
+                    <option value="inherit">{t('Von der Site erben')}</option>
+                    <option value="own">{t('Eigene Benutzer')}</option>
                   </Select>
                 </Field>
-                <Field label="IP-Regeln" hint="Eigene Allow/Deny-Regeln oder die der Site">
+                <Field label={t('IP-Regeln')} hint={t('Eigene Allow/Deny-Regeln oder die der Site')}>
                   <Select value={locForm.ip_rules_mode||'inherit'} onChange={e=>setLocForm({...locForm,ip_rules_mode:e.target.value})}>
-                    <option value="inherit">Von der Site erben</option>
-                    <option value="own">Eigene Regeln</option>
+                    <option value="inherit">{t('Von der Site erben')}</option>
+                    <option value="own">{t('Eigene Regeln')}</option>
                   </Select>
                 </Field>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                <InheritNumber label="Rate Limit RPS" value={locForm.rate_limit_rps} onChange={v=>setLocForm({...locForm,rate_limit_rps:v})} templateValue={inherited('rate_limit_rps')} />
-                <InheritNumber label="Rate Limit Burst" value={locForm.rate_limit_burst} onChange={v=>setLocForm({...locForm,rate_limit_burst:v})} templateValue={inherited('rate_limit_burst')} />
+                <InheritNumber label={t('Rate Limit RPS')} value={locForm.rate_limit_rps} onChange={v=>setLocForm({...locForm,rate_limit_rps:v})} templateValue={inherited('rate_limit_rps')} />
+                <InheritNumber label={t('Rate Limit Burst')} value={locForm.rate_limit_burst} onChange={v=>setLocForm({...locForm,rate_limit_burst:v})} templateValue={inherited('rate_limit_burst')} />
               </div>
             </div>
 
             <div className="rounded-lg border border-slate-200 p-4 space-y-1">
               <div className="text-sm font-semibold text-slate-800 mb-1">Cache</div>
-              <Tri label="Cache aktiv" value={locForm.cache_enabled} onChange={v=>setLocForm({...locForm,cache_enabled:v})} templateValue={inherited('cache_enabled')} inheritLabel="von der Site" />
+              <Tri label={t('Cache aktiv')} value={locForm.cache_enabled} onChange={v=>setLocForm({...locForm,cache_enabled:v})} templateValue={inherited('cache_enabled')} inheritLabel="von der Site" />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                <InheritNumber label="TTL (Sekunden, Fallback)" value={locForm.cache_ttl} onChange={v=>setLocForm({...locForm,cache_ttl:v})} templateValue={inherited('cache_ttl')} />
-                <InheritNumber label="Max. Objektgröße (KB)" value={locForm.cache_max_object_kb} onChange={v=>setLocForm({...locForm,cache_max_object_kb:v})} templateValue={inherited('cache_max_object_kb')} />
+                <InheritNumber label={t('TTL (Sekunden, Fallback)')} value={locForm.cache_ttl} onChange={v=>setLocForm({...locForm,cache_ttl:v})} templateValue={inherited('cache_ttl')} />
+                <InheritNumber label={t('Max. Objektgröße (KB)')} value={locForm.cache_max_object_kb} onChange={v=>setLocForm({...locForm,cache_max_object_kb:v})} templateValue={inherited('cache_max_object_kb')} />
               </div>
             </div>
 
             <div className="rounded-lg border border-slate-200 p-4 space-y-3">
-              <div className="text-sm font-semibold text-slate-800">GeoIP & HTTP/3</div>
-              <Tri label="GeoIP Filter" value={locForm.geoip_enabled} onChange={v=>setLocForm({...locForm,geoip_enabled:v})} templateValue={inherited('geoip_enabled')} inheritLabel="von der Site" />
-              <Field label="Modus">
+              <div className="text-sm font-semibold text-slate-800">{t('GeoIP & HTTP/3')}</div>
+              <Tri label={t('GeoIP Filter')} value={locForm.geoip_enabled} onChange={v=>setLocForm({...locForm,geoip_enabled:v})} templateValue={inherited('geoip_enabled')} inheritLabel="von der Site" />
+              <Field label={t('Modus')}>
                 <Select value={locForm.geoip_mode||''} onChange={e=>setLocForm({...locForm,geoip_mode:e.target.value||null})}>
-                  <option value="">Inherit</option>
-                  <option value="block">Block (ausgewählte Länder sperren)</option>
-                  <option value="allow">Allow (nur ausgewählte Länder erlauben)</option>
+                  <option value="">{t('Inherit')}</option>
+                  <option value="block">{t('Block (ausgewählte Länder sperren)')}</option>
+                  <option value="allow">{t('Allow (nur ausgewählte Länder erlauben)')}</option>
                 </Select>
               </Field>
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-sm font-medium text-slate-700">Länder</label>
                   <label className="flex items-center gap-1 text-xs text-slate-500">
-                    <input type="checkbox" checked={locForm.geoip_countries===null} onChange={e=>setLocForm({...locForm, geoip_countries: e.target.checked?null:[]})} /> von der Site erben
-                  </label>
+                    <input type="checkbox" checked={locForm.geoip_countries===null} onChange={e=>setLocForm({...locForm, geoip_countries: e.target.checked?null:[]})} />{t('von der Site erben')}</label>
                 </div>
                 {locForm.geoip_countries===null ? (
                   <div className="text-sm text-slate-400 px-3 py-2 border border-dashed border-slate-200 rounded-lg">
                     {(inherited('geoip_countries')||[]).length ? (inherited('geoip_countries')||[]).join(', ') : '— keine (Site)'}
                   </div>
                 ) : (
-                  <MultiSelect options={countries} value={locForm.geoip_countries} onChange={v=>setLocForm({...locForm,geoip_countries:v})} placeholder="Länder auswählen..." />
+                  <MultiSelect options={countries} value={locForm.geoip_countries} onChange={v=>setLocForm({...locForm,geoip_countries:v})} placeholder={t('Länder auswählen...')} />
                 )}
               </div>
               <Tri label="HTTP/3 (QUIC)" value={locForm.http3_enabled} onChange={v=>setLocForm({...locForm,http3_enabled:v})} templateValue={inherited('http3_enabled')} inheritLabel="von der Site" />
