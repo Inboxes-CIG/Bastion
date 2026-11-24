@@ -86,7 +86,7 @@ export default function IPLists() {
   return (
     <div className="space-y-4 max-w-6xl">
       <Alert variant="info">
-        <b>Allowlist</b> überspringt CrowdSec- und GeoIP-Sperren (z.B. für dein Büro/VPN).
+        <b>Allowlist</b> überspringt CrowdSec- und GeoIP-Sperren (z.B. für dein Büro/VPN), aber NICHT den per-Site Login.
         <b> Blocklist</b> sperrt IPs sofort und ohne Rückmeldung – hat Vorrang vor der Allowlist.
       </Alert>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

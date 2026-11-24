@@ -468,7 +468,7 @@ export default function SiteDetail() {
                     )}
                   </div>
 
-                  <Alert variant="info">Ist Auth aktiv und die IP in der Allow-Liste (oder global erlaubt), ist kein Login nötig. Nach 3 Fehlversuchen wird die IP 5 Minuten gesperrt (429).</Alert>
+                  <Alert variant="info">Ist Auth aktiv und die IP in der Site-Allow-Liste, ist kein Login nötig. Die globale IP-Whitelist hebt den Site-Login NICHT auf. Nach 3 Fehlversuchen wird die IP 5 Minuten gesperrt (429).</Alert>
                 </>
               )}
             </div>

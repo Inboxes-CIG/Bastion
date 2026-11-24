@@ -293,10 +293,9 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 			authEnabled = *tmpl.AuthEnabled
 		}
 		if authEnabled {
+			// Only the per-site allow list bypasses the login; the global
+			// whitelist does NOT.
 			ipAllowed := data.Allowed(entry.ClientIP)
-			if !ipAllowed && s.IPList != nil && s.IPList.IsAllowed(entry.ClientIP) {
-				ipAllowed = true
-			}
 			if !ipAllowed {
 				key := site.ID.String() + "|" + entry.ClientIP
 				if s.Lockout != nil && s.Lockout.Locked(key) {
