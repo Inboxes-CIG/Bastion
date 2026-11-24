@@ -51,7 +51,7 @@ export default function Certificates() {
       <Modal open={openUpload} onClose={()=>setOpenUpload(false)} title="Zertifikat hochladen"
         footer={<><Button variant="secondary" onClick={()=>setOpenUpload(false)}>Abbrechen</Button><Button onClick={upload}>Hochladen</Button></>}>
         <div className="space-y-4">
-          <Field label="Domain"><Input value={form.domain} onChange={e=>setForm({...form,domain:e.target.value})} /></Field>
+          <Field label="Domain" hint="Primäre Domain (z. B. example.com). Alle SANs aus dem Zertifikat – auch Wildcards wie *.example.com – werden automatisch übernommen."><Input value={form.domain} onChange={e=>setForm({...form,domain:e.target.value})} /></Field>
           <Field label="Certificate PEM (inkl. Chain)"><Textarea value={form.cert_pem} onChange={e=>setForm({...form,cert_pem:e.target.value})} /></Field>
           <Field label="Private Key PEM"><Textarea value={form.key_pem} onChange={e=>setForm({...form,key_pem:e.target.value})} /></Field>
           <Field label="Tenant"><Select value={form.tenant_id} onChange={e=>setForm({...form,tenant_id:e.target.value})}><option value="">—</option>{tenants.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</Select></Field>

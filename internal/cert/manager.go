@@ -67,8 +67,15 @@ func (m *Manager) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, 
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	if hello.ServerName != "" {
-		if c, ok := m.cache[hello.ServerName]; ok {
+		name := strings.ToLower(hello.ServerName)
+		if c, ok := m.cache[name]; ok {
 			return c, nil
+		}
+		// Wildcard fallback: *.example.com matches foo.example.com
+		if i := strings.IndexByte(name, '.'); i > 0 {
+			if c, ok := m.cache["*"+name[i:]]; ok {
+				return c, nil
+			}
 		}
 	}
 	if m.Default != nil {
@@ -84,8 +91,10 @@ func (m *Manager) AddManual(domain, certPEM, keyPEM string, tenantID string) err
 	block, _ := pem.Decode([]byte(certPEM))
 	var notBefore, notAfter *time.Time
 	var issuer string
+	var leaf *x509.Certificate
 	if block != nil {
 		if c, err := x509.ParseCertificate(block.Bytes); err == nil {
+			leaf = c
 			nb := c.NotBefore
 			na := c.NotAfter
 			notBefore = &nb
@@ -111,8 +120,18 @@ func (m *Manager) AddManual(domain, certPEM, keyPEM string, tenantID string) err
 		return err
 	}
 	c, _ := tls.X509KeyPair([]byte(certPEM), []byte(keyPEM))
+	names := []string{domain}
+	if leaf != nil {
+		names = append(names, leaf.DNSNames...)
+		for _, ip := range leaf.IPAddresses {
+			names = append(names, ip.String())
+		}
+	}
 	m.mu.Lock()
-	m.cache[domain] = &c
+	for _, n := range names {
+		cc := c
+		m.cache[strings.ToLower(n)] = &cc
+	}
 	m.mu.Unlock()
 	return nil
 }
