@@ -31,9 +31,9 @@ export default function Login() {
         </div>
         <div className="relative">
           <h2 className="text-3xl font-bold leading-tight mb-4">Schutz für deine<br/>Web-Anwendungen.</h2>
-          <p className="text-slate-400 max-w-md">Reverse-Proxy, TLS-Zertifikate, GeoIP-Filter und Multi-Tenant-Verwaltung – zentral verwaltet.</p>
+          <p className="text-slate-400 max-w-md">Reverse-Proxy, TLS-Zertifikate, GeoIP-Filter.</p>
         </div>
-        <div className="text-sm text-slate-500 relative">© 2026 Bastion</div>
+        <div className="text-sm text-slate-500 relative">© 2026 Inboxes</div>
       </div>
 
       <div className="flex-1 flex items-center justify-center p-6 bg-slate-50">
