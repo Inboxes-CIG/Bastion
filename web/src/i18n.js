@@ -123,6 +123,15 @@ const en = {
   'Tage': 'days',
   'Schnellzugriff': 'Quick access',
   'Zertifikat': 'Certificate',
+  'Dashboard anpassen': 'Customize dashboard',
+  'Fertig': 'Done',
+  'Zurücksetzen': 'Reset',
+  'Ausblenden': 'Hide',
+  'einblenden': 'show',
+  'Ausgeblendete Elemente': 'Hidden elements',
+  'Kennzahlen': 'Key metrics',
+  'Layout wird in diesem Browser gespeichert.': 'The layout is stored in this browser.',
+  'Ziehe die Elemente an die gewünschte Position oder blende sie aus. Das Layout wird in diesem Browser gespeichert.': 'Drag elements to the desired position or hide them. The layout is stored in this browser.',
 
   // Settings
   'Konto': 'Account',
