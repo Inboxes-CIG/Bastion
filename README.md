@@ -4,6 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **Bastion** is a self-hosted reverse proxy and security control panel. It combines TLS termination, automatic Let's Encrypt certificates, GeoIP filtering, CrowdSec integration, IP allow/deny lists, per-site Basic Auth, optional TOTP two-factor authentication for the GUI, rate limiting and HTTP response caching behind a modern web UI.
+<img width="1154" height="687" alt="Bastion-Dashboard1" src="https://github.com/user-attachments/assets/f59cad31-fef0-4b29-9943-6731ec383537" />
 
 ## Documentation
 
