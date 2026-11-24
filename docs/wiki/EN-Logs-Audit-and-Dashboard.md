@@ -95,6 +95,10 @@ Not recorded: read-only GET requests (except login).
 - `metrics` is based on the in-memory ring buffer since startup (or since loading recent logs).
 - `system` reads `/proc/stat`, `/proc/meminfo` and `statfs`.
 
+## Customizing the dashboard
+
+With **Customize dashboard** you can drag widgets to reorder them, change their width (1/3, 2/3, 100%) and hide them. Hidden widgets can be shown again; **Reset** restores the default layout. The layout is stored in your browser.
+
 ## Useful commands
 
 ```sh

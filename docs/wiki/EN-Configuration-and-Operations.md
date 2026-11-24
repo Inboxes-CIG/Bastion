@@ -152,7 +152,7 @@ The database is migrated automatically on startup (`AutoMigrate`).
 - Firewall: only 80/443 (TCP) and 443/UDP (HTTP/3)
 - Behind a CDN/proxy: only trust `X-Forwarded-For` from trusted sources (Bastion trusts the header)
 
-## Known limitations (v1.0.3)
+## Known limitations (v1.0.4)
 
 - Some GUI options are not enforced yet: HSTS, compression, max body size, custom headers, force-HTTPS switch, HTTP/2 and WebSocket switches. Details: [Sites & templates](https://github.com/Inboxes-CIG/Bastion/wiki/EN-Sites-and-Templates).
 - Cache is not persistent across restarts.

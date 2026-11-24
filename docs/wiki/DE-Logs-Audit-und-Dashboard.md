@@ -95,6 +95,10 @@ Nicht erfasst: lesende GET-Requests (außer Login).
 - `metrics` basiert auf dem In-Memory-Ringpuffer seit dem Start (bzw. seit dem Laden der letzten Logs).
 - `system` liest `/proc/stat`, `/proc/meminfo` und `statfs`.
 
+## Dashboard anpassen
+
+Über **Dashboard anpassen** lassen sich Widgets per Drag & Drop verschieben, in der Breite ändern (1/3, 2/3, 100 %) und ausblenden. Ausgeblendete Widgets können wieder eingeblendet werden; **Zurücksetzen** stellt das Standardlayout her. Das Layout wird im Browser gespeichert.
+
 ## Nützliche Befehle
 
 ```sh

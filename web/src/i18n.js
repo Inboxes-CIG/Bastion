@@ -132,6 +132,9 @@ const en = {
   'Kennzahlen': 'Key metrics',
   'Layout wird in diesem Browser gespeichert.': 'The layout is stored in this browser.',
   'Ziehe die Elemente an die gewünschte Position oder blende sie aus. Das Layout wird in diesem Browser gespeichert.': 'Drag elements to the desired position or hide them. The layout is stored in this browser.',
+  'Ziehe die Elemente an die gewünschte Position, ändere die Breite oder blende sie aus. Das Layout wird in diesem Browser gespeichert.': 'Drag elements to the desired position, change the width or hide them. The layout is stored in this browser.',
+  'Breite': 'Width',
+  '100%': '100%',
 
   // Settings
   'Konto': 'Account',

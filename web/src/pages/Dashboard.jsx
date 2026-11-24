@@ -16,11 +16,13 @@ const META = {
   certs: { label: 'Ablaufende Zertifikate', span: 2 },
   quick: { label: 'Schnellzugriff', span: 1 },
 }
+const DEFAULT_SIZES = Object.fromEntries(DEFAULT_ORDER.map(id => [id, META[id].span]))
 
 function loadLayout() {
+  const defaults = () => ({ order: DEFAULT_ORDER.slice(), hidden: [], sizes: { ...DEFAULT_SIZES } })
   try {
     const raw = localStorage.getItem(LAYOUT_KEY)
-    if (!raw) return { order: DEFAULT_ORDER.slice(), hidden: [] }
+    if (!raw) return defaults()
     const parsed = JSON.parse(raw)
     const known = new Set(DEFAULT_ORDER)
     const order = (parsed.order || []).filter(id => known.has(id))
@@ -28,9 +30,14 @@ function loadLayout() {
       if (!order.includes(id)) order.push(id)
     }
     const hidden = (parsed.hidden || []).filter(id => known.has(id))
-    return { order, hidden }
+    const sizes = { ...DEFAULT_SIZES }
+    for (const id of DEFAULT_ORDER) {
+      const size = Number(parsed.sizes?.[id])
+      if (size >= 1 && size <= 3) sizes[id] = size
+    }
+    return { order, hidden, sizes }
   } catch {
-    return { order: DEFAULT_ORDER.slice(), hidden: [] }
+    return defaults()
   }
 }
 
@@ -105,8 +112,9 @@ export default function Dashboard() {
   const show = (id) => persist({ ...layout, hidden: layout.hidden.filter(x => x !== id) })
   const reset = () => {
     try { localStorage.removeItem(LAYOUT_KEY) } catch {}
-    setLayout({ order: DEFAULT_ORDER.slice(), hidden: [] })
+    setLayout({ order: DEFAULT_ORDER.slice(), hidden: [], sizes: { ...DEFAULT_SIZES } })
   }
+  const setSize = (id, size) => persist({ ...layout, sizes: { ...layout.sizes, [id]: size } })
   const dropOn = (target) => {
     if (!dragId || dragId === target) return
     const order = layout.order.filter(id => id !== dragId)
@@ -140,7 +148,7 @@ export default function Dashboard() {
     switch (id) {
       case 'stats':
         return (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className={`grid grid-cols-1 sm:grid-cols-2 ${(layout.sizes?.stats || 3) >= 3 ? 'lg:grid-cols-4' : 'lg:grid-cols-2'} gap-4`}>
             <StatCard label={t('Sites')} value={data.sites} icon="sites" accent="indigo" />
             <StatCard label={t('Verbindungen (24h)')} value={total} icon="bolt" accent="sky" hint={`${(m.rps || 0).toFixed(2)} req/s`} />
             <StatCard label={t('Geblockt (24h)')} value={blocked} icon="shield" accent="rose" hint={t('{n}% Blockrate', { n: blockRate })} />
@@ -297,7 +305,10 @@ export default function Dashboard() {
     }
   }
 
-  const spanClass = (id) => META[id]?.span === 3 ? 'lg:col-span-3' : META[id]?.span === 2 ? 'lg:col-span-2' : 'lg:col-span-1'
+  const spanClass = (id) => {
+    const size = layout.sizes?.[id] || META[id]?.span || 1
+    return size === 3 ? 'lg:col-span-3' : size === 2 ? 'lg:col-span-2' : 'lg:col-span-1'
+  }
 
   return (
     <div className="space-y-6 max-w-7xl">
@@ -319,7 +330,7 @@ export default function Dashboard() {
 
       {editMode && (
         <div className="rounded-lg border border-dashed border-indigo-300 bg-indigo-50/40 px-4 py-3 text-sm text-indigo-900">
-          {t('Ziehe die Elemente an die gewünschte Position oder blende sie aus. Das Layout wird in diesem Browser gespeichert.')}
+          {t('Ziehe die Elemente an die gewünschte Position, ändere die Breite oder blende sie aus. Das Layout wird in diesem Browser gespeichert.')}
         </div>
       )}
 
@@ -351,9 +362,23 @@ export default function Dashboard() {
             onDragEnd={() => { setDragId(null); setDragOver(null) }}
           >
             {editMode && (
-              <div className="flex items-center justify-between mb-1 px-1">
+              <div className="flex items-center justify-between gap-2 mb-1 px-1" onMouseDown={(e)=>e.stopPropagation()}>
                 <span className="text-xs text-slate-500 cursor-grab select-none">⋮⋮ {t(META[id].label)}</span>
-                <button onClick={() => hide(id)} className="text-xs text-red-600 hover:underline">{t('Ausblenden')}</button>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-1 text-xs text-slate-500">
+                    {t('Breite')}
+                    <select
+                      value={layout.sizes?.[id] || META[id].span}
+                      onChange={(e)=>setSize(id, Number(e.target.value))}
+                      className="rounded border border-slate-300 bg-white px-1.5 py-1 text-xs text-slate-700"
+                    >
+                      <option value={1}>1/3</option>
+                      <option value={2}>2/3</option>
+                      <option value={3}>{t('100%')}</option>
+                    </select>
+                  </label>
+                  <button onClick={() => hide(id)} className="text-xs text-red-600 hover:underline">{t('Ausblenden')}</button>
+                </div>
               </div>
             )}
             {renderWidget(id)}
