@@ -16,35 +16,35 @@ import (
 
 	"github.com/inboxes-cig/bastion/internal/accesslog"
 	"github.com/inboxes-cig/bastion/internal/autoban"
-	"github.com/inboxes-cig/bastion/internal/cert"
 	"github.com/inboxes-cig/bastion/internal/cache"
+	"github.com/inboxes-cig/bastion/internal/cert"
 	"github.com/inboxes-cig/bastion/internal/crowdsec"
 	"github.com/inboxes-cig/bastion/internal/db"
 	"github.com/inboxes-cig/bastion/internal/geoip"
-	"github.com/quic-go/quic-go/http3"
 	"github.com/inboxes-cig/bastion/internal/iplist"
 	"github.com/inboxes-cig/bastion/internal/ratelimit"
 	"github.com/inboxes-cig/bastion/internal/siteaccess"
 	"github.com/inboxes-cig/bastion/internal/web"
+	"github.com/quic-go/quic-go/http3"
 	"gorm.io/gorm"
 )
 
 type Server struct {
-	DB         *gorm.DB
-	Certs      *cert.Manager
-	GeoIP      *geoip.Lookup
-	CrowdSec   *crowdsec.Client
-	Log        *accesslog.Logger
-	IPList     *iplist.List
-	RateLimiter *ratelimit.Limiter
-	Cache       *cache.Cache
+	DB           *gorm.DB
+	Certs        *cert.Manager
+	GeoIP        *geoip.Lookup
+	CrowdSec     *crowdsec.Client
+	Log          *accesslog.Logger
+	IPList       *iplist.List
+	RateLimiter  *ratelimit.Limiter
+	Cache        *cache.Cache
 	HTTP3Enabled bool
 	Access       *siteaccess.Cache
 	Lockout      *siteaccess.Lockout
 	AutoBan      *autoban.Detector
-	HTTPAddr   string
-	HTTPSAddr  string
-	AdminHosts map[string]bool
+	HTTPAddr     string
+	HTTPSAddr    string
+	AdminHosts   map[string]bool
 }
 
 func NewServer(db *gorm.DB, cm *cert.Manager, g *geoip.Lookup, cs *crowdsec.Client, lg *accesslog.Logger, il *iplist.List, rl *ratelimit.Limiter, ca *cache.Cache, httpAddr, httpsAddr string, adminHosts []string) *Server {
@@ -148,7 +148,7 @@ func (s *Server) isAdminHost(host string) bool {
 func (s *Server) findSite(host string) (*db.Site, error) {
 	h := strings.ToLower(strings.SplitN(host, ":", 2)[0])
 	var sites []db.Site
-	if err := s.DB.Find(&sites).Error; err != nil {
+	if err := s.DB.Preload("Locations").Find(&sites).Error; err != nil {
 		return nil, err
 	}
 	for i := range sites {
@@ -162,6 +162,51 @@ func (s *Server) findSite(host string) (*db.Site, error) {
 		}
 	}
 	return nil, gorm.ErrRecordNotFound
+}
+
+// matchLocation returns the enabled location with the longest prefix that
+// matches the request path. Prefixes match whole path segments: /api matches
+// /api and /api/v1, but not /apix.
+func matchLocation(locs []db.SiteLocation, requestPath string) *db.SiteLocation {
+	if requestPath == "" {
+		requestPath = "/"
+	}
+	var best *db.SiteLocation
+	bestLen := -1
+	for i := range locs {
+		l := &locs[i]
+		if !l.Enabled {
+			continue
+		}
+		prefix, err := normalizeLocationPrefix(l.PathPrefix)
+		if err != nil || prefix == "" {
+			continue
+		}
+		if prefix != "/" && requestPath != prefix && !strings.HasPrefix(requestPath, prefix+"/") {
+			continue
+		}
+		if len(prefix) > bestLen {
+			best = l
+			bestLen = len(prefix)
+		}
+	}
+	return best
+}
+
+// normalizeLocationPrefix is a light-weight version of the API validation so
+// the proxy also handles rows written before validation existed.
+func normalizeLocationPrefix(p string) (string, error) {
+	p = strings.TrimSpace(p)
+	if p == "" {
+		return "", nil
+	}
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
+	for len(p) > 1 && strings.HasSuffix(p, "/") {
+		p = strings.TrimSuffix(p, "/")
+	}
+	return p, nil
 }
 
 func getClientIP(r *http.Request) string {
@@ -273,6 +318,13 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 	entry.SiteID = site.ID.String()
 	entry.Domain = site.Domain
 
+	if !site.Enabled {
+		entry.Blocked = true
+		entry.BlockReason = "site_disabled"
+		silentBlock(sw)
+		return
+	}
+
 	// Resolve template
 	var tmpl *db.SiteTemplate
 	if site.TemplateID != nil {
@@ -280,6 +332,13 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 		if err := s.DB.First(&t, "id = ?", *site.TemplateID).Error; err == nil {
 			tmpl = &t
 		}
+	}
+
+	// Resolve the best matching path location (longest prefix wins). A zero
+	// value means "no location", so all overrides are nil and inherit.
+	loc := &db.SiteLocation{}
+	if l := matchLocation(site.Locations, r.URL.Path); l != nil {
+		loc = l
 	}
 
 	// Per-site access control (IP allow/deny + Basic Auth)
@@ -292,7 +351,9 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		authEnabled := false
-		if site.AuthEnabled != nil {
+		if loc.AuthEnabled != nil {
+			authEnabled = *loc.AuthEnabled
+		} else if site.AuthEnabled != nil {
 			authEnabled = *site.AuthEnabled
 		} else if tmpl != nil && tmpl.AuthEnabled != nil {
 			authEnabled = *tmpl.AuthEnabled
@@ -330,13 +391,17 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Effective upstream URL
 	upstreamURL := ""
-	if site.UpstreamURL != nil {
+	if loc.UpstreamURL != nil {
+		upstreamURL = *loc.UpstreamURL
+	} else if site.UpstreamURL != nil {
 		upstreamURL = *site.UpstreamURL
 	} else if tmpl != nil && tmpl.UpstreamURL != nil {
 		upstreamURL = *tmpl.UpstreamURL
 	}
 	upstreamHost := ""
-	if site.UpstreamHost != nil {
+	if loc.UpstreamHost != nil {
+		upstreamHost = *loc.UpstreamHost
+	} else if site.UpstreamHost != nil {
 		upstreamHost = *site.UpstreamHost
 	} else if tmpl != nil && tmpl.UpstreamHost != nil {
 		upstreamHost = *tmpl.UpstreamHost
@@ -350,7 +415,9 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 
 	// GeoIP filter (effective)
 	geoEnabled := false
-	if site.GeoIPEnabled != nil {
+	if loc.GeoIPEnabled != nil {
+		geoEnabled = *loc.GeoIPEnabled
+	} else if site.GeoIPEnabled != nil {
 		geoEnabled = *site.GeoIPEnabled
 	} else if tmpl != nil && tmpl.GeoIPEnabled != nil {
 		geoEnabled = *tmpl.GeoIPEnabled
@@ -360,13 +427,17 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 		cc := entry.Country
 		if cc != "" {
 			mode := "block"
-			if site.GeoIPMode != nil {
+			if loc.GeoIPMode != nil {
+				mode = *loc.GeoIPMode
+			} else if site.GeoIPMode != nil {
 				mode = *site.GeoIPMode
 			} else if tmpl != nil && tmpl.GeoIPMode != nil {
 				mode = *tmpl.GeoIPMode
 			}
 			var countries []string
-			if site.GeoIPCountries != nil {
+			if loc.GeoIPCountries != nil {
+				countries = loc.GeoIPCountries
+			} else if site.GeoIPCountries != nil {
 				countries = site.GeoIPCountries
 			} else if tmpl != nil {
 				countries = tmpl.GeoIPCountries
@@ -398,13 +469,17 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 	// Rate limiting (effective from site/template)
 	if !allowed && s.RateLimiter != nil {
 		rps := 0
-		if site.RateLimitRPS != nil {
+		if loc.RateLimitRPS != nil {
+			rps = *loc.RateLimitRPS
+		} else if site.RateLimitRPS != nil {
 			rps = *site.RateLimitRPS
 		} else if tmpl != nil && tmpl.RateLimitRPS != nil {
 			rps = *tmpl.RateLimitRPS
 		}
 		burst := 0
-		if site.RateLimitBurst != nil {
+		if loc.RateLimitBurst != nil {
+			burst = *loc.RateLimitBurst
+		} else if site.RateLimitBurst != nil {
 			burst = *site.RateLimitBurst
 		} else if tmpl != nil && tmpl.RateLimitBurst != nil {
 			burst = *tmpl.RateLimitBurst
@@ -430,17 +505,23 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 		cacheMaxObj = cfg.MaxObjectKB
 		globalTTL = cfg.TTLSeconds
 	}
-	if site.CacheEnabled != nil {
+	if loc.CacheEnabled != nil {
+		cacheEnabled = *loc.CacheEnabled
+	} else if site.CacheEnabled != nil {
 		cacheEnabled = *site.CacheEnabled
 	} else if tmpl != nil && tmpl.CacheEnabled != nil {
 		cacheEnabled = *tmpl.CacheEnabled
 	}
-	if site.CacheTTL != nil {
+	if loc.CacheTTL != nil {
+		cacheTTL = *loc.CacheTTL
+	} else if site.CacheTTL != nil {
 		cacheTTL = *site.CacheTTL
 	} else if tmpl != nil && tmpl.CacheTTL != nil {
 		cacheTTL = *tmpl.CacheTTL
 	}
-	if site.CacheMaxObjectKB != nil {
+	if loc.CacheMaxObjectKB != nil {
+		cacheMaxObj = *loc.CacheMaxObjectKB
+	} else if site.CacheMaxObjectKB != nil {
 		cacheMaxObj = *site.CacheMaxObjectKB
 	} else if tmpl != nil && tmpl.CacheMaxObjectKB != nil {
 		cacheMaxObj = *tmpl.CacheMaxObjectKB
@@ -492,7 +573,9 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 	// Advertise HTTP/3 for this site (Alt-Svc); clients upgrade on next request.
 	if s.HTTP3Enabled {
 		h3 := false
-		if site.HTTP3Enabled != nil {
+		if loc.HTTP3Enabled != nil {
+			h3 = *loc.HTTP3Enabled
+		} else if site.HTTP3Enabled != nil {
 			h3 = *site.HTTP3Enabled
 		} else if tmpl != nil && tmpl.HTTP3Enabled != nil {
 			h3 = *tmpl.HTTP3Enabled

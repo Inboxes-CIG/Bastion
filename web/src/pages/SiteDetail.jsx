@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api } from '../api.js'
-import { Button, Input, Select, Field, Card, Toggle, Spinner, Alert, Badge, MultiSelect } from '../components/UI.jsx'
+import { Button, Input, Select, Field, Card, Toggle, Spinner, Alert, Badge, MultiSelect, Modal } from '../components/UI.jsx'
 import Icon from '../components/Icon.jsx'
 
 function emptyForm() {
@@ -15,9 +15,21 @@ function emptyForm() {
   }
 }
 
+function emptyLocation() {
+  return {
+    id: null, path_prefix: '/', enabled: true,
+    upstream_url: null, upstream_host: null,
+    auth_enabled: null, cache_enabled: null, cache_ttl: null, cache_max_object_kb: null,
+    rate_limit_rps: null, rate_limit_burst: null,
+    geoip_enabled: null, geoip_mode: null, geoip_countries: null,
+    http3_enabled: null,
+  }
+}
+
 const TABS = [
   { id: 'general', label: 'Allgemein' },
   { id: 'domains', label: 'Domains' },
+  { id: 'locations', label: 'Locations' },
   { id: 'tls', label: 'TLS & Zertifikat' },
   { id: 'http', label: 'HTTP' },
   { id: 'geoip', label: 'GeoIP' },
@@ -26,13 +38,13 @@ const TABS = [
   { id: 'advanced', label: 'Erweitert' },
 ]
 
-function Tri({ label, value, onChange, templateValue }) {
+function Tri({ label, value, onChange, templateValue, inheritLabel = 'vom Template' }) {
   return (
     <div className="flex items-center justify-between py-2">
       <div>
         <div className="text-sm text-slate-700">{label}</div>
         {value === null && templateValue !== undefined && templateValue !== null && (
-          <div className="text-xs text-slate-400">vom Template: {String(templateValue)}</div>
+          <div className="text-xs text-slate-400">{inheritLabel}: {String(templateValue)}</div>
         )}
       </div>
       <select value={value===null?'inherit':value?'on':'off'}
@@ -106,6 +118,10 @@ export default function SiteDetail() {
   const [cacheMsg, setCacheMsg] = useState('')
   const [siteUsers, setSiteUsers] = useState([])
   const [siteRules, setSiteRules] = useState([])
+  const [locations, setLocations] = useState([])
+  const [locForm, setLocForm] = useState(null)
+  const [locErr, setLocErr] = useState('')
+  const [locBusy, setLocBusy] = useState(false)
   const [userForm, setUserForm] = useState({ username:'', password:'', active:true })
   const [userEditing, setUserEditing] = useState(null)
   const [userErr, setUserErr] = useState('')
@@ -137,6 +153,10 @@ export default function SiteDetail() {
     api('/sites/'+id+'/users').then(d=>setSiteUsers(d.data||[])).catch(()=>{})
     api('/sites/'+id+'/ip-rules').then(d=>setSiteRules(d.data||[])).catch(()=>{})
   }
+  const loadLocations = () => {
+    if (isNew) return
+    api('/sites/'+id+'/locations').then(d=>setLocations(d.data||[])).catch(()=>{})
+  }
 
   useEffect(() => {
     api('/templates').then(d=>setTemplates(d.data||[])).catch(()=>{})
@@ -145,6 +165,7 @@ export default function SiteDetail() {
     loadCerts()
     loadSite()
     loadAccess()
+    loadLocations()
   }, [id])
 
   useEffect(() => {
@@ -193,6 +214,38 @@ export default function SiteDetail() {
   }
   const editRule = (r) => { setRuleEditing(r.id); setRuleForm({ kind:r.kind, value:r.value, note:r.note||'' }); setRuleErr('') }
   const delRule = async (rid) => { if (!confirm('Regel löschen?')) return; await api('/sites/'+id+'/ip-rules/'+rid, { method:'DELETE' }); loadAccess() }
+
+  const saveLocation = async () => {
+    if (!locForm) return
+    setLocErr(''); setLocBusy(true)
+    try {
+      const payload = {
+        path_prefix: locForm.path_prefix,
+        enabled: locForm.enabled,
+        upstream_url: locForm.upstream_url || null,
+        upstream_host: locForm.upstream_host || null,
+        auth_enabled: locForm.auth_enabled,
+        cache_enabled: locForm.cache_enabled,
+        cache_ttl: locForm.cache_ttl,
+        cache_max_object_kb: locForm.cache_max_object_kb,
+        rate_limit_rps: locForm.rate_limit_rps,
+        rate_limit_burst: locForm.rate_limit_burst,
+        geoip_enabled: locForm.geoip_enabled,
+        geoip_mode: locForm.geoip_mode || null,
+        geoip_countries: locForm.geoip_countries,
+        http3_enabled: locForm.http3_enabled,
+      }
+      if (locForm.id) await api('/sites/'+id+'/locations/'+locForm.id, { method:'PUT', body: JSON.stringify(payload) })
+      else await api('/sites/'+id+'/locations', { method:'POST', body: JSON.stringify(payload) })
+      setLocForm(null); loadLocations()
+    } catch(e) { setLocErr(e.message) } finally { setLocBusy(false) }
+  }
+  const delLocation = async (lid) => {
+    if (!confirm('Location löschen?')) return
+    try { await api('/sites/'+id+'/locations/'+lid, { method:'DELETE' }); loadLocations() }
+    catch(e) { setLocErr(e.message) }
+  }
+  const inherited = (k) => (form[k] !== null && form[k] !== undefined) ? form[k] : (tmpl ? tmpl[k] : null)
 
   const save = async () => {
     setErr(''); setSaving(true)
@@ -289,6 +342,48 @@ export default function SiteDetail() {
               <Field label="Primary Domain" hint="Die Haupt-Domain dieser Site."><Input value={form.domain} onChange={e=>setForm({...form,domain:e.target.value})} /></Field>
               <Field label="Alias-Domains" hint="Kommagetrennt, z.B. www.example.com, shop.example.com"><Input value={form.extra_domains} onChange={e=>setForm({...form,extra_domains:e.target.value})} placeholder="www.example.com, api.example.com" /></Field>
               <Alert variant="info">Nach Änderung der Domains speichern und im Tab „TLS &amp; Zertifikat" neu ausstellen, damit die neuen Domains im Zertifikat enthalten sind.</Alert>
+            </div>
+          )}
+
+          {tab === 'locations' && (
+            <div className="space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="font-semibold text-slate-800">Pfad-Locations</div>
+                  <div className="text-sm text-slate-500">Eigene Konfiguration für Unterpfade. Längster passender Prefix gewinnt.</div>
+                </div>
+                <Button onClick={()=>{ setLocErr(''); setLocForm(emptyLocation()) }} disabled={isNew}>Location hinzufügen</Button>
+              </div>
+
+              {isNew ? <Alert variant="info">Site zuerst speichern, dann Locations anlegen.</Alert> : locations.length === 0 ? (
+                <div className="text-sm text-slate-400 rounded-lg border border-dashed border-slate-200 p-6 text-center">Noch keine Locations. Ohne Location gilt die Site-Konfiguration für alle Pfade.</div>
+              ) : (
+                <div className="divide-y divide-slate-100 rounded-lg border border-slate-200">
+                  {locations.map(l => (
+                    <div key={l.id} className="p-4 flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono text-sm font-semibold text-slate-800">{l.path_prefix}</span>
+                          {!l.enabled && <Badge variant="slate">deaktiviert</Badge>}
+                          {l.auth_enabled !== null && <Badge variant={l.auth_enabled?'green':'slate'}>Auth {l.auth_enabled?'an':'aus'}</Badge>}
+                          {l.cache_enabled !== null && <Badge variant={l.cache_enabled?'blue':'slate'}>Cache {l.cache_enabled?'an':'aus'}</Badge>}
+                          {l.geoip_enabled !== null && <Badge variant={l.geoip_enabled?'amber':'slate'}>GeoIP {l.geoip_enabled?'an':'aus'}</Badge>}
+                          {l.rate_limit_rps !== null && <Badge variant="indigo">Limit {l.rate_limit_rps} rps</Badge>}
+                        </div>
+                        <div className="text-xs text-slate-500 mt-1 truncate">
+                          Upstream: {l.upstream_url || 'von der Site'} {l.upstream_host ? '· Host: ' + l.upstream_host : ''}
+                        </div>
+                      </div>
+                      <div className="flex items-center shrink-0">
+                        <button onClick={()=>{ setLocErr(''); setLocForm({ ...emptyLocation(), ...l }) }} className="p-1.5 text-slate-400 hover:text-indigo-600"><Icon name="edit" className="w-4 h-4" stroke /></button>
+                        <button onClick={()=>delLocation(l.id)} className="p-1.5 text-slate-400 hover:text-red-600"><Icon name="trash" className="w-4 h-4" stroke /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {locErr && !locForm && <div className="text-sm text-red-600">{locErr}</div>}
+              <Alert variant="info">Locations erben nicht gesetzte Werte von der Site bzw. dem Template. Der längste Prefix gewinnt: <code>/api</code> matcht <code>/api</code> und <code>/api/v1</code>, aber nicht <code>/apix</code>.</Alert>
             </div>
           )}
 
@@ -485,6 +580,79 @@ export default function SiteDetail() {
           )}
         </div>
       </div>
+
+      <Modal
+        open={!!locForm}
+        onClose={()=>setLocForm(null)}
+        title={locForm?.id ? 'Location bearbeiten' : 'Neue Location'}
+        size="lg"
+        footer={<>
+          <Button variant="secondary" onClick={()=>setLocForm(null)}>Abbrechen</Button>
+          <Button onClick={saveLocation} disabled={locBusy || !locForm?.path_prefix}>{locBusy ? 'Speichern...' : 'Speichern'}</Button>
+        </>}
+      >
+        {locForm && (
+          <form onSubmit={(e)=>{ e.preventDefault(); saveLocation() }} className="space-y-5">
+            {locErr && <Alert variant="error">{locErr}</Alert>}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Pfad-Prefix" hint="Muss mit / beginnen, z. B. /api oder /static">
+                <Input value={locForm.path_prefix} onChange={e=>setLocForm({...locForm,path_prefix:e.target.value})} placeholder="/api" required />
+              </Field>
+              <Field label="Status">
+                <div className="pt-2"><Toggle checked={!!locForm.enabled} onChange={v=>setLocForm({...locForm,enabled:v})} label={locForm.enabled?'Aktiv':'Deaktiviert'} /></div>
+              </Field>
+              <InheritText label="Upstream URL" value={locForm.upstream_url} onChange={v=>setLocForm({...locForm,upstream_url:v})} templateValue={inherited('upstream_url')} placeholder="http://backend:8080" />
+              <InheritText label="Upstream Host / Name" value={locForm.upstream_host} onChange={v=>setLocForm({...locForm,upstream_host:v})} templateValue={inherited('upstream_host')} placeholder="leer = Site-Wert" />
+            </div>
+
+            <div className="rounded-lg border border-slate-200 p-4 space-y-1">
+              <div className="text-sm font-semibold text-slate-800 mb-1">Zugriff & Limit</div>
+              <Tri label="Basic Auth" value={locForm.auth_enabled} onChange={v=>setLocForm({...locForm,auth_enabled:v})} templateValue={inherited('auth_enabled')} inheritLabel="von der Site" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <InheritNumber label="Rate Limit RPS" value={locForm.rate_limit_rps} onChange={v=>setLocForm({...locForm,rate_limit_rps:v})} templateValue={inherited('rate_limit_rps')} />
+                <InheritNumber label="Rate Limit Burst" value={locForm.rate_limit_burst} onChange={v=>setLocForm({...locForm,rate_limit_burst:v})} templateValue={inherited('rate_limit_burst')} />
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 p-4 space-y-1">
+              <div className="text-sm font-semibold text-slate-800 mb-1">Cache</div>
+              <Tri label="Cache aktiv" value={locForm.cache_enabled} onChange={v=>setLocForm({...locForm,cache_enabled:v})} templateValue={inherited('cache_enabled')} inheritLabel="von der Site" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <InheritNumber label="TTL (Sekunden, Fallback)" value={locForm.cache_ttl} onChange={v=>setLocForm({...locForm,cache_ttl:v})} templateValue={inherited('cache_ttl')} />
+                <InheritNumber label="Max. Objektgröße (KB)" value={locForm.cache_max_object_kb} onChange={v=>setLocForm({...locForm,cache_max_object_kb:v})} templateValue={inherited('cache_max_object_kb')} />
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 p-4 space-y-3">
+              <div className="text-sm font-semibold text-slate-800">GeoIP & HTTP/3</div>
+              <Tri label="GeoIP Filter" value={locForm.geoip_enabled} onChange={v=>setLocForm({...locForm,geoip_enabled:v})} templateValue={inherited('geoip_enabled')} inheritLabel="von der Site" />
+              <Field label="Modus">
+                <Select value={locForm.geoip_mode||''} onChange={e=>setLocForm({...locForm,geoip_mode:e.target.value||null})}>
+                  <option value="">Inherit</option>
+                  <option value="block">Block (ausgewählte Länder sperren)</option>
+                  <option value="allow">Allow (nur ausgewählte Länder erlauben)</option>
+                </Select>
+              </Field>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-sm font-medium text-slate-700">Länder</label>
+                  <label className="flex items-center gap-1 text-xs text-slate-500">
+                    <input type="checkbox" checked={locForm.geoip_countries===null} onChange={e=>setLocForm({...locForm, geoip_countries: e.target.checked?null:[]})} /> von der Site erben
+                  </label>
+                </div>
+                {locForm.geoip_countries===null ? (
+                  <div className="text-sm text-slate-400 px-3 py-2 border border-dashed border-slate-200 rounded-lg">
+                    {(inherited('geoip_countries')||[]).length ? (inherited('geoip_countries')||[]).join(', ') : '— keine (Site)'}
+                  </div>
+                ) : (
+                  <MultiSelect options={countries} value={locForm.geoip_countries} onChange={v=>setLocForm({...locForm,geoip_countries:v})} placeholder="Länder auswählen..." />
+                )}
+              </div>
+              <Tri label="HTTP/3 (QUIC)" value={locForm.http3_enabled} onChange={v=>setLocForm({...locForm,http3_enabled:v})} templateValue={inherited('http3_enabled')} inheritLabel="von der Site" />
+            </div>
+          </form>
+        )}
+      </Modal>
     </div>
   )
 }

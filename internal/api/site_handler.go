@@ -29,33 +29,33 @@ func (h *SiteHandler) List(c *gin.Context) {
 }
 
 type siteRequest struct {
-	TenantID       string   `json:"tenant_id"`
-	TemplateID     *string  `json:"template_id"`
-	Domain         string   `json:"domain" binding:"required"`
-	ExtraDomains   []string `json:"extra_domains"`
-	UpstreamURL    *string  `json:"upstream_url"`
-	UpstreamHost   *string  `json:"upstream_host"`
-	CertID         *string  `json:"cert_id"`
-	Enabled        *bool    `json:"enabled"`
+	TenantID     string   `json:"tenant_id"`
+	TemplateID   *string  `json:"template_id"`
+	Domain       string   `json:"domain" binding:"required"`
+	ExtraDomains []string `json:"extra_domains"`
+	UpstreamURL  *string  `json:"upstream_url"`
+	UpstreamHost *string  `json:"upstream_host"`
+	CertID       *string  `json:"cert_id"`
+	Enabled      *bool    `json:"enabled"`
 
 	// Override fields (nil = inherit from template)
-	GeoIPEnabled       *bool    `json:"geoip_enabled"`
-	GeoIPMode          *string  `json:"geoip_mode"`
+	GeoIPEnabled       *bool     `json:"geoip_enabled"`
+	GeoIPMode          *string   `json:"geoip_mode"`
 	GeoIPCountries     *[]string `json:"geoip_countries"`
-	HTTP2Enabled       *bool   `json:"http2_enabled"`
-	HTTP3Enabled       *bool   `json:"http3_enabled"`
-	ForceHTTPS         *bool   `json:"force_https"`
-	HSTSEnabled        *bool   `json:"hsts_enabled"`
-	HSTSMaxAge         *int    `json:"hsts_max_age"`
-	WebSocketEnabled   *bool   `json:"websocket_enabled"`
-	CompressionEnabled *bool   `json:"compression_enabled"`
-	RateLimitRPS       *int    `json:"rate_limit_rps"`
-	RateLimitBurst     *int    `json:"rate_limit_burst"`
-	MaxBodySizeMB      *int    `json:"max_body_size_mb"`
-	CacheEnabled       *bool   `json:"cache_enabled"`
-	CacheTTL           *int    `json:"cache_ttl"`
-	CacheMaxObjectKB   *int    `json:"cache_max_object_kb"`
-	AuthEnabled        *bool   `json:"auth_enabled"`
+	HTTP2Enabled       *bool     `json:"http2_enabled"`
+	HTTP3Enabled       *bool     `json:"http3_enabled"`
+	ForceHTTPS         *bool     `json:"force_https"`
+	HSTSEnabled        *bool     `json:"hsts_enabled"`
+	HSTSMaxAge         *int      `json:"hsts_max_age"`
+	WebSocketEnabled   *bool     `json:"websocket_enabled"`
+	CompressionEnabled *bool     `json:"compression_enabled"`
+	RateLimitRPS       *int      `json:"rate_limit_rps"`
+	RateLimitBurst     *int      `json:"rate_limit_burst"`
+	MaxBodySizeMB      *int      `json:"max_body_size_mb"`
+	CacheEnabled       *bool     `json:"cache_enabled"`
+	CacheTTL           *int      `json:"cache_ttl"`
+	CacheMaxObjectKB   *int      `json:"cache_max_object_kb"`
+	AuthEnabled        *bool     `json:"auth_enabled"`
 }
 
 func (h *SiteHandler) Create(c *gin.Context) {
@@ -130,7 +130,7 @@ func (h *SiteHandler) Get(c *gin.Context) {
 		return
 	}
 	var site db.Site
-	if err := h.DB.First(&site, "id = ?", id).Error; err != nil {
+	if err := h.DB.Preload("Locations").First(&site, "id = ?", id).Error; err != nil {
 		NotFound(c, "site not found")
 		return
 	}

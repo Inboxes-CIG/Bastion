@@ -2,28 +2,28 @@ package api
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/inboxes-cig/bastion/internal/accesslog"
 	"github.com/inboxes-cig/bastion/internal/audit"
 	"github.com/inboxes-cig/bastion/internal/auth"
-	"github.com/inboxes-cig/bastion/internal/web"
-	"github.com/inboxes-cig/bastion/internal/accesslog"
 	"github.com/inboxes-cig/bastion/internal/cache"
 	"github.com/inboxes-cig/bastion/internal/cert"
 	"github.com/inboxes-cig/bastion/internal/crowdsec"
 	"github.com/inboxes-cig/bastion/internal/iplist"
 	"github.com/inboxes-cig/bastion/internal/siteaccess"
+	"github.com/inboxes-cig/bastion/internal/web"
 	"gorm.io/gorm"
 )
 
 type Deps struct {
-	DB        *gorm.DB
-	JWTSecret string
-	Certs     *cert.Manager
-	CrowdSec  *crowdsec.Client
-	Log       *accesslog.Logger
+	DB         *gorm.DB
+	JWTSecret  string
+	Certs      *cert.Manager
+	CrowdSec   *crowdsec.Client
+	Log        *accesslog.Logger
 	AdminHosts []string
-	IPList    *iplist.List
-	Cache     *cache.Cache
-	Access    *siteaccess.Cache
+	IPList     *iplist.List
+	Cache      *cache.Cache
+	Access     *siteaccess.Cache
 }
 
 func NewRouter(d Deps) *gin.Engine {
@@ -41,6 +41,7 @@ func NewRouter(d Deps) *gin.Engine {
 	certH := &CertHandler{DB: d.DB, Certs: d.Certs}
 	tmplH := &TemplateHandler{DB: d.DB}
 	siteH := &SiteHandler{DB: d.DB}
+	locH := &LocationHandler{DB: d.DB, Cache: d.Cache}
 	geoipH := &GeoIPHandler{DB: d.DB}
 	statsH := &StatsHandler{DB: d.DB, Log: d.Log}
 	csH := &CrowdSecHandler{CS: d.CrowdSec}
@@ -99,6 +100,11 @@ func NewRouter(d Deps) *gin.Engine {
 			protected.POST("/certificates", auth.RequireRole("superadmin", "tenant_admin"), certH.Upload)
 			protected.POST("/certificates/issue", auth.RequireRole("superadmin", "tenant_admin"), certH.Issue)
 			protected.DELETE("/certificates/:id", auth.RequireRole("superadmin", "tenant_admin"), certH.Delete)
+
+			protected.GET("/sites/:id/locations", locH.List)
+			protected.POST("/sites/:id/locations", auth.RequireRole("superadmin", "tenant_admin"), locH.Create)
+			protected.PUT("/sites/:id/locations/:lid", auth.RequireRole("superadmin", "tenant_admin"), locH.Update)
+			protected.DELETE("/sites/:id/locations/:lid", auth.RequireRole("superadmin", "tenant_admin"), locH.Delete)
 
 			protected.GET("/sites/:id/users", accessH.ListUsers)
 			protected.POST("/sites/:id/users", auth.RequireRole("superadmin", "tenant_admin"), accessH.CreateUser)
