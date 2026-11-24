@@ -360,7 +360,7 @@ export default function SiteDetail() {
             <div className="space-y-5">
               <Field label={t('Primary Domain')} hint={t('Die Haupt-Domain dieser Site.')}><Input value={form.domain} onChange={e=>setForm({...form,domain:e.target.value})} /></Field>
               <Field label={t('Alias-Domains')} hint={t('Kommagetrennt, z.B. www.example.com, shop.example.com')}><Input value={form.extra_domains} onChange={e=>setForm({...form,extra_domains:e.target.value})} placeholder="www.example.com, api.example.com" /></Field>
-              <Alert variant="info">Nach Änderung der Domains speichern und im Tab „TLS &amp; Zertifikat" neu ausstellen, damit die neuen Domains im Zertifikat enthalten sind.</Alert>
+              <Alert variant="info">{t('Nach Änderung der Domains speichern und im Tab „TLS & Zertifikat" neu ausstellen, damit die neuen Domains im Zertifikat enthalten sind.')}</Alert>
             </div>
           )}
 
@@ -482,7 +482,7 @@ export default function SiteDetail() {
               </Field>
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-sm font-medium text-slate-700">Länder</label>
+                  <label className="text-sm font-medium text-slate-700">{t('Länder')}</label>
                   <label className="flex items-center gap-1 text-xs text-slate-500">
                     <input type="checkbox" checked={form.geoip_countries===null} onChange={e=>setForm({...form, geoip_countries: e.target.checked?null:[]})} />{t('vom Template erben')}</label>
                 </div>
@@ -497,7 +497,7 @@ export default function SiteDetail() {
                   <div className="text-xs text-slate-400 mt-1">{form.geoip_countries.length} Länder ausgewählt</div>
                 )}
               </div>
-              <Alert variant="info">Bei Modus „Block" werden die ausgewählten Länder gesperrt. Bei „Allow" werden nur die ausgewählten Länder erlaubt.</Alert>
+              <Alert variant="info">{t('Bei Modus „Block" werden die ausgewählten Länder gesperrt. Bei „Allow" werden nur die ausgewählten Länder erlaubt.')}</Alert>
             </div>
           )}
 
@@ -512,12 +512,12 @@ export default function SiteDetail() {
                 <div className="text-sm text-slate-600 mb-2">{t('Zwischengespeicherte Antworten dieser Site sofort verwerfen:')}</div>
                 {isNew ? <div className="text-sm text-slate-400">{t('Site zuerst speichern.')}</div> : (
                   <div className="flex items-center gap-3">
-                    <Button variant="secondary" onClick={clearSiteCache} disabled={cacheBusy}>{cacheBusy ? '...' : 'Cache dieser Site leeren'}</Button>
+                    <Button variant="secondary" onClick={clearSiteCache} disabled={cacheBusy}>{cacheBusy ? '...' : t('Cache dieser Site leeren')}</Button>
                     {cacheMsg && <span className={`text-sm ${cacheMsg.startsWith('Fehler')?'text-red-600':'text-emerald-600'}`}>{cacheMsg}</span>}
                   </div>
                 )}
               </div>
-              <Alert variant="info">Globaler Schalter und Standardwerte unter Settings → Response-Cache. Hier steuerst du Cache pro Site (Vererbung vom Template möglich). Die TTL ist nur Fallback: Liefert das Backend <code>Cache-Control</code> (s-maxage/max-age) oder <code>Expires</code>, gilt dessen Frischezeit; no-store/no-cache/private verhindern das Cachen.</Alert>
+              <Alert variant="info">{t('Globaler Schalter und Standardwerte unter Settings → Response-Cache. Hier steuerst du Cache pro Site (Vererbung vom Template möglich). Die TTL ist nur Fallback: Liefert das Backend Cache-Control (s-maxage/max-age) oder Expires, gilt dessen Frischezeit; no-store/no-cache/private verhindern das Cachen.')}</Alert>
             </div>
           )}
 
@@ -620,7 +620,7 @@ export default function SiteDetail() {
               <InheritText label="Upstream URL" value={form.upstream_url} onChange={v=>setForm({...form,upstream_url:v})} templateValue={tmpl?.upstream_url} placeholder="http://backend:8080" />
               <InheritText label={t('Upstream Host / Name (Host-Header)')} value={form.upstream_host} onChange={v=>setForm({...form,upstream_host:v})} templateValue={tmpl?.upstream_host} placeholder={t('z.B. backend.internal (leer = Original-Host)')} />
               <Tri label={t('Upstream-TLS-Zertifikat ignorieren')} value={form.upstream_insecure_skip_verify} onChange={v=>setForm({...form,upstream_insecure_skip_verify:v})} templateValue={tmpl?.upstream_insecure_skip_verify} />
-              <div className="sm:col-span-2"><Alert variant="warn">Nur für Upstreams mit selbstsigniertem Zertifikat. Deaktiviert die TLS-Zertifikatsprüfung zum Backend.</Alert></div>
+              <div className="sm:col-span-2"><Alert variant="warn">{t('Nur für Upstreams mit selbstsigniertem Zertifikat. Deaktiviert die TLS-Zertifikatsprüfung zum Backend.')}</Alert></div>
               <InheritNumber label={t('Rate Limit RPS')} value={form.rate_limit_rps} onChange={v=>setForm({...form,rate_limit_rps:v})} templateValue={tmpl?.rate_limit_rps} />
               <InheritNumber label={t('Rate Limit Burst')} value={form.rate_limit_burst} onChange={v=>setForm({...form,rate_limit_burst:v})} templateValue={tmpl?.rate_limit_burst} />
               <InheritNumber label={t('Max Body Size (MB)')} value={form.max_body_size_mb} onChange={v=>setForm({...form,max_body_size_mb:v})} templateValue={tmpl?.max_body_size_mb} />
@@ -698,7 +698,7 @@ export default function SiteDetail() {
               </Field>
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-sm font-medium text-slate-700">Länder</label>
+                  <label className="text-sm font-medium text-slate-700">{t('Länder')}</label>
                   <label className="flex items-center gap-1 text-xs text-slate-500">
                     <input type="checkbox" checked={locForm.geoip_countries===null} onChange={e=>setLocForm({...locForm, geoip_countries: e.target.checked?null:[]})} />{t('von der Site erben')}</label>
                 </div>
