@@ -1,0 +1,19 @@
+server:
+  http_addr: ":80"
+  https_addr: ":443"
+  api_addr: ":8080"
+database:
+  url: "postgres://waf:PASSWORD@localhost:5432/waf?sslmode=disable"
+auth:
+  jwt_secret: "CHANGE_ME"
+  session_secret: "CHANGE_ME"
+certs:
+  storage_dir: "/var/lib/bastion/certs"
+geoip:
+  db_path: "/var/lib/bastion/geoip/dbip-country-lite.mmdb"
+
+crowdsec:
+  enabled: true
+  lapi_url: "http://127.0.0.1:8081"
+  api_key: "CHANGE_ME"
+  refresh_seconds: 30

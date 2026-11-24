@@ -1,0 +1,194 @@
+package db
+
+import (
+	"time"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+)
+
+type Tenant struct {
+	ID        uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	Name      string         `gorm:"not null" json:"name"`
+	Slug      string         `gorm:"uniqueIndex;not null" json:"slug"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+type Role struct {
+	ID          uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	Name        string    `gorm:"not null" json:"name"`
+	Scope       string    `gorm:"not null" json:"scope"`
+	Permissions []byte    `gorm:"type:jsonb" json:"permissions"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+type User struct {
+	ID           uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	TenantID     *uuid.UUID     `gorm:"type:uuid;index" json:"tenant_id"`
+	Email        string         `gorm:"uniqueIndex;not null" json:"email"`
+	PasswordHash string         `gorm:"not null" json:"-"`
+	RoleID       uuid.UUID      `gorm:"type:uuid;not null" json:"role_id"`
+	Active       bool           `gorm:"default:true" json:"active"`
+	LastLogin    *time.Time     `json:"last_login"`
+	CreatedAt    time.Time      `json:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at"`
+	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+// SiteTemplate defines reusable site configuration defaults.
+type SiteTemplate struct {
+	ID          uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	TenantID    uuid.UUID  `gorm:"type:uuid;index;not null" json:"tenant_id"`
+	Name        string     `gorm:"not null" json:"name"`
+	Description string     `json:"description"`
+
+	// Inheritable config fields
+	UpstreamURL        *string `json:"upstream_url"`
+	UpstreamHost       *string `json:"upstream_host"`
+	GeoIPEnabled       *bool   `json:"geoip_enabled"`
+	GeoIPMode          *string `json:"geoip_mode"`
+	GeoIPCountries     StringArray `gorm:"type:jsonb" json:"geoip_countries"`
+	HTTP2Enabled       *bool   `json:"http2_enabled"`
+	HTTP3Enabled       *bool   `json:"http3_enabled"`
+	ForceHTTPS         *bool   `json:"force_https"`
+	HSTSEnabled        *bool   `json:"hsts_enabled"`
+	HSTSMaxAge         *int    `json:"hsts_max_age"`
+	WebSocketEnabled   *bool   `json:"websocket_enabled"`
+	CompressionEnabled *bool   `json:"compression_enabled"`
+	RateLimitRPS       *int    `json:"rate_limit_rps"`
+	RateLimitBurst     *int    `json:"rate_limit_burst"`
+	MaxBodySizeMB      *int    `json:"max_body_size_mb"`
+	CacheEnabled       *bool   `json:"cache_enabled"`
+	CacheTTL           *int    `json:"cache_ttl"`
+	CacheMaxObjectKB   *int    `json:"cache_max_object_kb"`
+	AuthEnabled        *bool   `json:"auth_enabled"`
+	CustomHeaders      []byte  `gorm:"type:jsonb" json:"custom_headers"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// Site represents a proxied site/domain.
+type Site struct {
+	ID        uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	TenantID  uuid.UUID      `gorm:"type:uuid;index;not null" json:"tenant_id"`
+	TemplateID *uuid.UUID    `gorm:"type:uuid;index" json:"template_id"`
+
+	// Primary domain + extra domains (aliases)
+	Domain       string   `gorm:"not null" json:"domain"`
+	ExtraDomains StringArray `gorm:"type:jsonb" json:"extra_domains"`
+
+	// Override fields (nil = inherit from template)
+	UpstreamURL        *string `json:"upstream_url"`
+	UpstreamHost       *string `json:"upstream_host"`
+	GeoIPEnabled       *bool   `json:"geoip_enabled"`
+	GeoIPMode          *string `json:"geoip_mode"`
+	GeoIPCountries     StringArray `gorm:"type:jsonb" json:"geoip_countries"`
+	HTTP2Enabled       *bool   `json:"http2_enabled"`
+	HTTP3Enabled       *bool   `json:"http3_enabled"`
+	ForceHTTPS         *bool   `json:"force_https"`
+	HSTSEnabled        *bool   `json:"hsts_enabled"`
+	HSTSMaxAge         *int    `json:"hsts_max_age"`
+	WebSocketEnabled   *bool   `json:"websocket_enabled"`
+	CompressionEnabled *bool   `json:"compression_enabled"`
+	RateLimitRPS       *int    `json:"rate_limit_rps"`
+	RateLimitBurst     *int    `json:"rate_limit_burst"`
+	MaxBodySizeMB      *int    `json:"max_body_size_mb"`
+	CacheEnabled       *bool   `json:"cache_enabled"`
+	CacheTTL           *int    `json:"cache_ttl"`
+	CacheMaxObjectKB   *int    `json:"cache_max_object_kb"`
+	AuthEnabled        *bool   `json:"auth_enabled"`
+	CustomHeaders      []byte  `gorm:"type:jsonb" json:"custom_headers"`
+
+	// Effective (resolved) fields - computed, not stored
+	// Cert reference
+	CertID *uuid.UUID `gorm:"type:uuid" json:"cert_id"`
+
+	// Status
+	Enabled bool `gorm:"default:true" json:"enabled"`
+
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+type Certificate struct {
+	ID        uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	TenantID  uuid.UUID  `gorm:"type:uuid;index;not null" json:"tenant_id"`
+	Domain    string     `gorm:"not null" json:"domain"`
+	CertPEM   string     `gorm:"type:text" json:"-"`
+	KeyPEM    string     `gorm:"type:text" json:"-"`
+	Issuer    string     `json:"issuer"`
+	NotBefore *time.Time `json:"not_before"`
+	NotAfter  *time.Time `json:"not_after"`
+	AutoRenew bool       `gorm:"default:false" json:"auto_renew"`
+	Source    string     `gorm:"default:manual" json:"source"`
+	Email     string     `json:"email"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+}
+
+type IPListEntry struct {
+	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	Kind      string    `gorm:"not null" json:"kind"`
+	Value     string    `gorm:"not null" json:"value"`
+	Note      string    `json:"note"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type GeoIPRule struct {
+	ID          uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	TenantID    uuid.UUID  `gorm:"type:uuid;index;not null" json:"tenant_id"`
+	SiteID      *uuid.UUID `gorm:"type:uuid;index" json:"site_id"`
+	CountryCode string     `gorm:"not null" json:"country_code"`
+	Action      string     `gorm:"not null" json:"action"`
+	Priority    int        `gorm:"default:0" json:"priority"`
+	CreatedAt   time.Time  `json:"created_at"`
+}
+
+type SiteAuthUser struct {
+	ID           uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	SiteID       uuid.UUID `gorm:"type:uuid;index;not null" json:"site_id"`
+	Username     string    `gorm:"not null" json:"username"`
+	PasswordHash string    `gorm:"not null" json:"-"`
+	Active       bool      `gorm:"default:true" json:"active"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+type SiteIPRule struct {
+	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	SiteID    uuid.UUID `gorm:"type:uuid;index;not null" json:"site_id"`
+	Kind      string    `gorm:"not null" json:"kind"`
+	Value     string    `gorm:"not null" json:"value"`
+	Note      string    `json:"note"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type AuditLog struct {
+	ID         uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	TenantID   *uuid.UUID `gorm:"type:uuid;index" json:"tenant_id"`
+	UserID     *uuid.UUID `gorm:"type:uuid;index" json:"user_id"`
+	UserEmail  string     `json:"user_email"`
+	Action     string     `gorm:"index" json:"action"`
+	Resource   string     `json:"resource"`
+	ResourceID string     `json:"resource_id"`
+	Method     string     `json:"method"`
+	Path       string     `json:"path"`
+	Status     int        `json:"status"`
+	IP         string     `json:"ip"`
+	Details    string     `json:"details"`
+	CreatedAt  time.Time  `gorm:"index" json:"created_at"`
+}
+
+type GoodActor struct {
+	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	Value     string    `gorm:"not null" json:"value"`
+	Note      string    `json:"note"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func AutoMigrate(d *gorm.DB) error {
+	return d.AutoMigrate(&Tenant{}, &Role{}, &User{}, &SiteTemplate{}, &Site{}, &Certificate{}, &GeoIPRule{}, &IPListEntry{}, &AuditLog{}, &GoodActor{}, &SiteAuthUser{}, &SiteIPRule{})
+}

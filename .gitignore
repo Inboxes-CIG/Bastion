@@ -1,0 +1,26 @@
+# Go build artifacts
+/bastion
+/waf
+/bin/
+*.exe
+*.test
+*.out
+internal/web/dist/
+
+# Frontend
+web/node_modules/
+web/dist/
+
+# Runtime / secrets
+*.env
+.secrets.env
+config.yaml
+cache.json
+version_cache.json
+good-actors.yaml
+*.log
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
