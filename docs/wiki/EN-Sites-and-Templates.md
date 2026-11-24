@@ -113,7 +113,7 @@ UDP/443 must be open in the firewall.
 - **Disable location** → fall back to the site configuration.
 - Clear the site cache manually after site changes; location changes clear it automatically.
 
-## Known limitations (v1.0.2)
+## Known limitations (v1.0.3)
 
 These fields exist in the model and UI but are **not** applied in the request path yet:
 

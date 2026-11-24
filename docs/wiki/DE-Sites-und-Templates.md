@@ -113,7 +113,7 @@ UDP/443 muss in der Firewall offen sein.
 - **Location deaktivieren** → Fallback auf die Site-Konfiguration.
 - Nach Änderungen an Site oder Locations den Cache im Site-Detail manuell leeren, falls nötig (Location-Änderungen tun das automatisch).
 
-## Aktueller Stand: nicht erzwungene Optionen (v1.0.2)
+## Aktueller Stand: nicht erzwungene Optionen (v1.0.3)
 
 Diese Felder sind im Modell und in der GUI vorhanden, werden aber derzeit **nicht** im Request-Pfad angewendet:
 
