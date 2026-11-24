@@ -17,6 +17,7 @@
 - HTTP-Response-Cache mit Backend-Header-Unterstützung
 - HTTP/2 und HTTP/3 (QUIC)
 - Multi-Tenancy + RBAC (superadmin, tenant_admin, editor, viewer)
+- GUI auf Deutsch und Englisch (umschaltbar unter Settings → Sprache & Oberfläche)
 - Zugriffslogs (JSONL + Combined Log) und Audit-Log
 - Dashboard mit Systemmetriken, 24h-Traffic und Zertifikats-Ablauf
 - Update-Check gegen GitHub-Releases
@@ -65,10 +66,10 @@
 9. Response-Cache (HIT → direkt aus dem RAM).
 10. Sonst Reverse Proxy zum Upstream.
 
-> **Admin-Hosts:** Jede IP-Adresse als Host gilt automatisch als Admin-Host. Zusätzlich gelten `server.admin_hosts`; ist die Liste leer, werden `waf.inboxes.de` und `localhost` verwendet. Admin-Hosts sind von IP-Listen, CrowdSec und GeoIP ausgenommen, damit du dich nicht selbst aussperrst.
+> **Admin-Hosts:** Jede IP-Adresse als Host gilt automatisch als Admin-Host. Zusätzlich gelten `server.admin_hosts`; ist die Liste leer, werden `localhost` und ein interner Fallback verwendet. Admin-Hosts sind von IP-Listen, CrowdSec und GeoIP ausgenommen, damit du dich nicht selbst aussperrst.
 
 ## Weiterlesen
 
-- [[DE-Installation|Installation & Upgrade]]
-- [[DE-Erste-Schritte|Erste Schritte]]
-- [[DE-Konfiguration-und-Betrieb|Konfiguration & Betrieb]]
+- [Installation & Upgrade](https://github.com/Inboxes-CIG/Bastion/wiki/DE-Installation)
+- [Erste Schritte](https://github.com/Inboxes-CIG/Bastion/wiki/DE-Erste-Schritte)
+- [Konfiguration & Betrieb](https://github.com/Inboxes-CIG/Bastion/wiki/DE-Konfiguration-und-Betrieb)

@@ -26,7 +26,7 @@ Beim selbstsignierten Zertifikat muss die Browser-Warnung einmal akzeptiert werd
 **Sofort erledigen:**
 
 1. Passwort ändern (Users → eigener Benutzer).
-2. MFA aktivieren (Settings → Zwei-Faktor-Authentifizierung), siehe [[DE-Zugriff-und-MFA|Zugriff & MFA]].
+2. MFA aktivieren (Settings → Zwei-Faktor-Authentifizierung), siehe [Zugriff & MFA](https://github.com/Inboxes-CIG/Bastion/wiki/DE-Zugriff-und-MFA).
 
 ## 3. Tenant prüfen
 
@@ -54,10 +54,10 @@ Speichern. Bastion löst die Site ab sofort über den `Host`-Header auf.
 
 **Zwei Wege:**
 
-- **Let's Encrypt** (Certificates → Ausstellen): Domain muss öffentlich auf den Server zeigen und Port 80 erreichbar sein. Wildcards sind über HTTP-01 **nicht** möglich.
+- **Let's Encrypt** (Site → TLS & Zertifikat → Ausstellen): Domain muss öffentlich auf den Server zeigen und Port 80 erreichbar sein. Wildcards sind über HTTP-01 **nicht** möglich.
 - **Manueller Upload** (Certificates → Upload): Zertifikat + Key einfügen. Das Feld „Domain" ist die primäre Bezeichnung; alle SANs und Wildcards aus dem PEM werden automatisch ausgeliefert.
 
-Details: [[DE-Zertifikate|Zertifikate]].
+Details: [Zertifikate](https://github.com/Inboxes-CIG/Bastion/wiki/DE-Zertifikate).
 
 ## 6. Testen
 
@@ -100,4 +100,4 @@ Empfohlene Reihenfolge:
 - [ ] Logs und Dashboard liefern Daten
 - [ ] Firewall: 80/443 offen, 8080 intern
 
-Weiter: [[DE-Sites-und-Templates|Sites & Templates]]
+Weiter: [Sites & Templates](https://github.com/Inboxes-CIG/Bastion/wiki/DE-Sites-und-Templates)

@@ -19,6 +19,7 @@
 - HTTP response cache honoring backend headers
 - HTTP/2 and HTTP/3 (QUIC)
 - Multi-tenancy + RBAC (superadmin, tenant_admin, editor, viewer)
+- GUI in German and English (switch under Settings → Language & interface)
 - Access logs (JSONL + combined log) and audit log
 - Dashboard with system metrics, 24h traffic and certificate expiry
 - Update check against GitHub releases
@@ -69,10 +70,10 @@
 11. Response cache (HIT → served from RAM).
 12. Otherwise reverse proxy to the upstream.
 
-> **Admin hosts:** Any IP address used as a host is automatically an admin host. Additionally, `server.admin_hosts` applies; if empty, `waf.inboxes.de` and `localhost` are used. Admin hosts are exempt from IP lists, CrowdSec and GeoIP so you cannot lock yourself out.
+> **Admin hosts:** Any IP address used as a host is automatically an admin host. Additionally, `server.admin_hosts` applies; if empty, `localhost` and an internal fallback are used; set `server.admin_hosts` explicitly. Admin hosts are exempt from IP lists, CrowdSec and GeoIP so you cannot lock yourself out.
 
 ## Next
 
-- [[EN-Installation|Installation & upgrade]]
-- [[EN-First-Steps|First steps]]
-- [[EN-Configuration-and-Operations|Configuration & operations]]
+- [Installation & upgrade](https://github.com/Inboxes-CIG/Bastion/wiki/EN-Installation)
+- [First steps](https://github.com/Inboxes-CIG/Bastion/wiki/EN-First-Steps)
+- [Configuration & operations](https://github.com/Inboxes-CIG/Bastion/wiki/EN-Configuration-and-Operations)

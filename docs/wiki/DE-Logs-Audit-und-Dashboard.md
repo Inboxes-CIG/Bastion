@@ -111,4 +111,4 @@ jq -c 'select(.blocked==true)' /var/lib/bastion/logs/access-$(date +%F).jsonl | 
 sudo -u postgres psql -d waf -c "SELECT created_at, user_email, action, resource, status, ip FROM audit_logs ORDER BY created_at DESC LIMIT 20;"
 ```
 
-Weiter: [[DE-Benutzer-Tenants-und-Rollen|Benutzer, Tenants & Rollen]]
+Weiter: [Benutzer, Tenants & Rollen](https://github.com/Inboxes-CIG/Bastion/wiki/DE-Benutzer-Tenants-und-Rollen)

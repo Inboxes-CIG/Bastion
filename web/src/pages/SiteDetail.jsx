@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { api } from '../api.js'
 import { Button, Input, Select, Field, Card, Toggle, Spinner, Alert, Badge, MultiSelect, Modal } from '../components/UI.jsx'
 import Icon from '../components/Icon.jsx'
+import { t } from '../i18n.js'
 
 function emptyForm() {
   return {
@@ -28,15 +29,15 @@ function emptyLocation() {
 }
 
 const TABS = [
-  { id: 'general', label: 'Allgemein' },
-  { id: 'domains', label: 'Domains' },
-  { id: 'locations', label: 'Locations' },
-  { id: 'tls', label: 'TLS & Zertifikat' },
-  { id: 'http', label: 'HTTP' },
-  { id: 'geoip', label: 'GeoIP' },
-  { id: 'cache', label: 'Cache' },
-  { id: 'access', label: 'Zugriff' },
-  { id: 'advanced', label: 'Erweitert' },
+  { id: 'general', label: t('Allgemein') },
+  { id: 'domains', label: t('Domains') },
+  { id: 'locations', label: t('Locations') },
+  { id: 'tls', label: t('TLS & Zertifikat') },
+  { id: 'http', label: t('HTTP') },
+  { id: 'geoip', label: t('GeoIP') },
+  { id: 'cache', label: t('Cache') },
+  { id: 'access', label: t('Zugriff') },
+  { id: 'advanced', label: t('Erweitert') },
 ]
 
 function Tri({ label, value, onChange, templateValue, inheritLabel = 'vom Template' }) {
@@ -310,18 +311,18 @@ export default function SiteDetail() {
         <div className="flex items-center gap-3">
           <button onClick={()=>nav('/sites')} className="p-2 rounded-lg hover:bg-slate-200 text-slate-500"><Icon name="chevron" className="w-5 h-5" stroke /></button>
           <div>
-            <h2 className="text-xl font-bold text-slate-800">{isNew ? 'Neue Site' : form.domain}</h2>
-            {!isNew && <div className="text-sm text-slate-500">Site-Konfiguration</div>}
+            <h2 className="text-xl font-bold text-slate-800">{isNew ? t('Neue Site') : form.domain}</h2>
+            {!isNew && <div className="text-sm text-slate-500">{t('Site-Konfiguration')}</div>}
           </div>
         </div>
         <div className="flex gap-2">
-          {!isNew && <Button variant="danger" onClick={del}><Icon name="trash" className="w-4 h-4" stroke /> Löschen</Button>}
-          <Button onClick={save} disabled={saving}>{saving?'Speichern...':(isNew?'Erstellen':'Speichern')}</Button>
+          {!isNew && <Button variant="danger" onClick={del}><Icon name="trash" className="w-4 h-4" stroke /> {t('Löschen')}</Button>}
+          <Button onClick={save} disabled={saving}>{saving?t('Speichern...'):(isNew?t('Erstellen'):t('Speichern'))}</Button>
         </div>
       </div>
 
       {err && <Alert variant="error">{err}</Alert>}
-      {saved && <Alert variant="success">Gespeichert.</Alert>}
+      {saved && <Alert variant="success">{t('Gespeichert.')}</Alert>}
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
         <div className="flex gap-1 px-2 border-b border-slate-100 overflow-x-auto">

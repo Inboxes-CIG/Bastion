@@ -55,7 +55,7 @@ DELETE FROM users WHERE email = '<email>';
 
 ## MFA
 
-See [[EN-Access-and-MFA|Access & MFA]].
+See [Access & MFA](https://github.com/Inboxes-CIG/Bastion/wiki/EN-Access-and-MFA).
 
 ## First install
 
@@ -63,4 +63,4 @@ See [[EN-Access-and-MFA|Access & MFA]].
 - Password: printed once in the journal (`journalctl -u bastion | grep -A4 'INITIAL SUPERADMIN'`)
 - Change the password and enable MFA after the first login.
 
-Next: [[EN-Configuration-and-Operations|Configuration & operations]]
+Next: [Configuration & operations](https://github.com/Inboxes-CIG/Bastion/wiki/EN-Configuration-and-Operations)

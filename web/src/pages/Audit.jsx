@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api.js'
 import { Card, Input, Select, Badge, Spinner, Alert, EmptyState, Table } from '../components/UI.jsx'
+import { t } from '../i18n.js'
 
 export default function Audit() {
   const [items, setItems] = useState(null)
@@ -20,24 +21,24 @@ export default function Audit() {
   if (!items) return <Spinner />
 
   const variant = (a) => a==='login'?'green':a==='login_failed'?'red':a==='create'?'indigo':a==='update'?'amber':a==='delete'?'red':'slate'
-  const label = (a) => ({ login:'Login', login_failed:'Login fehlgeschlagen', create:'Erstellen', update:'Ändern', delete:'Löschen' }[a] || a)
+  const label = (a) => ({ login:t('Login'), login_failed:t('Login fehlgeschlagen'), create:t('Erstellen'), update:t('Ändern'), delete:t('Löschen') }[a] || a)
 
   return (
     <div className="space-y-4 max-w-7xl">
       <div className="flex flex-col sm:flex-row gap-3">
         <Select value={action} onChange={e=>setAction(e.target.value)}>
-          <option value="">Alle Aktionen</option>
-          <option value="login">Login</option>
-          <option value="login_failed">Login fehlgeschlagen</option>
-          <option value="create">Erstellen</option>
-          <option value="update">Ändern</option>
-          <option value="delete">Löschen</option>
+          <option value="">{t('Alle Aktionen')}</option>
+          <option value="login">{t('Login')}</option>
+          <option value="login_failed">{t('Login fehlgeschlagen')}</option>
+          <option value="create">{t('Erstellen')}</option>
+          <option value="update">{t('Ändern')}</option>
+          <option value="delete">{t('Löschen')}</option>
         </Select>
-        <Input value={q} onChange={e=>setQ(e.target.value)} placeholder="User, Vorgang, Pfad, Ressource..." />
+        <Input value={q} onChange={e=>setQ(e.target.value)} placeholder={t('User, Vorgang, Pfad, Ressource...')} />
       </div>
       <Card className="p-0">
-        {items.length === 0 ? <EmptyState icon="clock" title="Keine Audit-Einträge" /> : (
-          <Table columns={['Zeit','User','Aktion','Vorgang','Ressource','Request','Status','IP']} rows={items} renderRow={e=>(
+        {items.length === 0 ? <EmptyState icon="clock" title={t('Keine Audit-Einträge')} /> : (
+          <Table columns={[t('Zeit'),t('User'),t('Aktion'),t('Vorgang'),t('Ressource'),t('Request'),t('Status'),'IP']} rows={items} renderRow={e=>(
             <tr key={e.id} className="border-b border-slate-100 hover:bg-slate-50">
               <td className="px-4 py-2 text-xs text-slate-500 whitespace-nowrap">{new Date(e.created_at).toLocaleString()}</td>
               <td className="px-4 py-2 text-sm text-slate-800">{e.user_email || '—'}</td>

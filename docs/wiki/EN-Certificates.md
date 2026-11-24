@@ -11,7 +11,7 @@ Requirements:
 - Public domain (no `.local`, `.test`, IPs)
 - ACME email address
 
-In the GUI: **Certificates → Issue** or **Site → TLS & certificate → Issue**.
+In the GUI: **Site → TLS & certificate → Issue**. The **Certificates** page is only for manual uploads; issuance happens per site.
 
 - One certificate with **all site domains** (primary + aliases) as SANs.
 - Local/test domains are filtered out (`excluded` in the response).
@@ -62,4 +62,4 @@ A domain listed only as an `extra_domain` but missing from the certificate will 
 | Wildcard does not work | HTTP-01 does not support wildcards → manual upload |
 | GUI unreachable after install | Accept the self-signed cert or set `server.admin_hosts` |
 
-Next: [[EN-Access-and-MFA|Access & MFA]]
+Next: [Access & MFA](https://github.com/Inboxes-CIG/Bastion/wiki/EN-Access-and-MFA)

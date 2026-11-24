@@ -26,7 +26,7 @@ Accept the self-signed certificate warning once. Then sign in with `admin@bastio
 **Do this immediately:**
 
 1. Change the password (Users → your user).
-2. Enable MFA (Settings → Two-Factor Authentication), see [[EN-Access-and-MFA|Access & MFA]].
+2. Enable MFA (Settings → Two-Factor Authentication), see [Access & MFA](https://github.com/Inboxes-CIG/Bastion/wiki/EN-Access-and-MFA).
 
 ## 3. Check the tenant
 
@@ -54,10 +54,10 @@ Save. Bastion resolves the site by `Host` immediately.
 
 Two options:
 
-- **Let's Encrypt** (Certificates → Issue): the domain must resolve to the server and port 80 must be reachable. Wildcards are **not** possible with HTTP-01.
+- **Let's Encrypt** (Site → TLS & certificate → Issue): the domain must resolve to the server and port 80 must be reachable. Wildcards are **not** possible with HTTP-01.
 - **Manual upload** (Certificates → Upload): paste certificate + key. The “Domain” field is the primary label; all SANs and wildcards in the PEM are served automatically.
 
-Details: [[EN-Certificates|Certificates]].
+Details: [Certificates](https://github.com/Inboxes-CIG/Bastion/wiki/EN-Certificates).
 
 ## 6. Test
 
@@ -101,4 +101,4 @@ Recommended order:
 - [ ] Logs and dashboard show data
 - [ ] Firewall: 80/443 open, 8080 internal
 
-Next: [[EN-Sites-and-Templates|Sites & templates]]
+Next: [Sites & templates](https://github.com/Inboxes-CIG/Bastion/wiki/EN-Sites-and-Templates)

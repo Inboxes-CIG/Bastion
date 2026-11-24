@@ -111,4 +111,4 @@ sudo ufw allow 443/udp
 sudo ufw deny 8080/tcp
 ```
 
-Next: [[EN-First-Steps|First steps]]
+Next: [First steps](https://github.com/Inboxes-CIG/Bastion/wiki/EN-First-Steps)

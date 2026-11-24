@@ -15,7 +15,7 @@ Bastion checks several protection layers in a fixed order.
 9. **Rate limit** (location/site/template).
 10. **Cache** / reverse proxy to the upstream.
 
-> **Admin hosts:** Any IP address used as a host plus all entries in `server.admin_hosts` are admin hosts. If the list is empty, `waf.inboxes.de` and `localhost` are used. Admin hosts are exempt from IP lists, CrowdSec, GeoIP and rate limiting.
+> **Admin hosts:** Any IP address used as a host plus all entries in `server.admin_hosts` are admin hosts. If the list is empty, `localhost` and an internal fallback are used; set `server.admin_hosts` explicitly. Admin hosts are exempt from IP lists, CrowdSec, GeoIP and rate limiting.
 
 ## Global IP lists
 
@@ -105,4 +105,4 @@ UPDATE users SET mfa_enabled = false, mfa_secret = '' WHERE email = '<user-email
 - MFA token: 5 minutes
 - Logout removes the browser token; there is no server-side revocation list.
 
-Next: [[EN-GeoIP-and-CrowdSec|GeoIP & CrowdSec]]
+Next: [GeoIP & CrowdSec](https://github.com/Inboxes-CIG/Bastion/wiki/EN-GeoIP-and-CrowdSec)

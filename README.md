@@ -21,10 +21,14 @@ Full documentation is available in German and English in the [Wiki](https://gith
 - CrowdSec integration (bouncer, alerts, good actors / whitelist)
 - IP allow/deny lists (global + per site)
 - Per-site Basic Auth with user management and 3-failures/5-minutes lockout
+- Path-based locations with their own upstream, auth users, IP rules, cache, rate limit and GeoIP settings
 - Optional TOTP MFA for the GUI (Google Authenticator, Authy, 1Password, …)
+- Automatic 404 flood ban (blocklist entry with note `404`)
+- Bilingual GUI (German/English, selectable in Settings)
 - HTTP/2 and HTTP/3 (QUIC)
 - Rate limiting (token bucket, per site + client IP)
 - HTTP response cache with per-site limits; honors backend Cache-Control (s-maxage/max-age), Expires, ETag/304, Vary and Age, with configurable TTL and size limits
+- Optional TLS verification skip for self-signed HTTPS upstreams
 - Multi-tenancy + RBAC (superadmin, tenant_admin, editor, viewer)
 - Persistent access logs (JSONL) + audit log (logins and changes)
 - Dashboard with live system metrics (CPU, RAM, disk), traffic (24h), top sites and blocked countries

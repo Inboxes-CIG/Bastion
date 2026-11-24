@@ -98,4 +98,4 @@ A client may send 5 requests/second (10 briefly) to `/api`; other paths use 10/2
 - Combine with the 404 auto-ban and CrowdSec
 - Behind a CDN/proxy: set `X-Forwarded-For` correctly (Bastion trusts the header)
 
-Next: [[EN-Logs-Audit-and-Dashboard|Logs, audit & dashboard]]
+Next: [Logs, audit & dashboard](https://github.com/Inboxes-CIG/Bastion/wiki/EN-Logs-Audit-and-Dashboard)

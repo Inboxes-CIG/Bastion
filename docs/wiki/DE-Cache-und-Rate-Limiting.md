@@ -98,4 +98,4 @@ Ein Client darf pro Sekunde 5 Requests (kurzzeitig 10) auf `/api` senden; andere
 - Zusammen mit Auto-Ban (404-Flut) und CrowdSec kombinieren
 - Bei CDN/Proxy vor Bastion: `X-Forwarded-For` korrekt setzen (Bastion vertraut dem Header)
 
-Weiter: [[DE-Logs-Audit-und-Dashboard|Logs, Audit & Dashboard]]
+Weiter: [Logs, Audit & Dashboard](https://github.com/Inboxes-CIG/Bastion/wiki/DE-Logs-Audit-und-Dashboard)

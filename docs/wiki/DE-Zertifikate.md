@@ -11,7 +11,7 @@ Voraussetzungen:
 - Domain ist öffentlich (keine `.local`, `.test`, IPs)
 - E-Mail-Adresse für ACME
 
-Ablauf in der GUI: **Certificates → Ausstellen** oder **Site → TLS & Zertifikat → Ausstellen**.
+Ablauf in der GUI: **Site → TLS & Zertifikat → Ausstellen**. Die Seite **Certificates** dient nur dem manuellen Upload; die Ausstellung erfolgt pro Site.
 
 - Es wird **ein Zertifikat mit allen Domains der Site** (Primary + Aliase) als SANs ausgestellt.
 - Lokale/Test-Domains werden vorher aussortiert (`excluded` in der Antwort).
@@ -64,4 +64,4 @@ Es gibt **kein** Zertifikat für eine Domain, die nur als `extra_domain` eingetr
 | Wildcard funktioniert nicht | HTTP-01 unterstützt keine Wildcards → manueller Upload |
 | Admin-GUI nach Installation nicht erreichbar | Selbstsigniertes Zertifikat akzeptieren oder `server.admin_hosts` setzen |
 
-Weiter: [[DE-Zugriff-und-MFA|Zugriff & MFA]]
+Weiter: [Zugriff & MFA](https://github.com/Inboxes-CIG/Bastion/wiki/DE-Zugriff-und-MFA)

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api.js'
 import { Card, Button, Input, Alert, Spinner } from '../components/UI.jsx'
 import Icon from '../components/Icon.jsx'
+import { t } from '../i18n.js'
 
 function ListCard({ title, subtitle, kind, entries, onAdd, onUpdate, onDelete }) {
   const [value, setValue] = useState('')
@@ -28,14 +29,14 @@ function ListCard({ title, subtitle, kind, entries, onAdd, onUpdate, onDelete })
   return (
     <Card title={title} subtitle={subtitle}>
       <form onSubmit={submit} className="flex flex-col sm:flex-row gap-2 mb-3">
-        <Input value={value} onChange={e=>setValue(e.target.value)} placeholder="IP oder CIDR (z.B. 203.0.113.5)" className="flex-1" required />
-        <Input value={note} onChange={e=>setNote(e.target.value)} placeholder="Notiz" className="sm:w-44" />
-        <Button type="submit" variant={kind==='allow'?'success':'danger'}>{editingId ? 'Speichern' : 'Hinzufügen'}</Button>
-        {editingId && <Button type="button" variant="secondary" onClick={cancel}>Abbrechen</Button>}
+        <Input value={value} onChange={e=>setValue(e.target.value)} placeholder={t('IP oder CIDR (z.B. 203.0.113.5)')} className="flex-1" required />
+        <Input value={note} onChange={e=>setNote(e.target.value)} placeholder={t('Notiz')} className="sm:w-44" />
+        <Button type="submit" variant={kind==='allow'?'success':'danger'}>{editingId ? t('Speichern') : t('Hinzufügen')}</Button>
+        {editingId && <Button type="button" variant="secondary" onClick={cancel}>{t('Abbrechen')}</Button>}
       </form>
       {err && <div className="text-sm text-red-600 mb-2">{err}</div>}
       {entries.length === 0 ? (
-        <div className="text-sm text-slate-400 py-6 text-center">Noch keine Einträge.</div>
+        <div className="text-sm text-slate-400 py-6 text-center">{t('Noch keine Einträge.')}</div>
       ) : (
         <div className="divide-y divide-slate-100">
           {entries.map(e => (
@@ -72,7 +73,7 @@ export default function IPLists() {
     load()
   }
   const del = async (id) => {
-    if (!confirm('Eintrag löschen?')) return
+    if (!confirm(t('Eintrag löschen?'))) return
     await api('/iplist/'+id, { method:'DELETE' })
     load()
   }
@@ -86,12 +87,12 @@ export default function IPLists() {
   return (
     <div className="space-y-4 max-w-6xl">
       <Alert variant="info">
-        <b>Allowlist</b> überspringt CrowdSec- und GeoIP-Sperren (z.B. für dein Büro/VPN), aber NICHT den per-Site Login.
-        <b> Blocklist</b> sperrt IPs sofort und ohne Rückmeldung – hat Vorrang vor der Allowlist.
+        <b>{t('Allowlist')}</b> {t('überspringt CrowdSec- und GeoIP-Sperren (z.B. für dein Büro/VPN), aber NICHT den per-Site Login.')}
+        <b> {t('Blocklist')}</b> {t('sperrt IPs sofort und ohne Rückmeldung – hat Vorrang vor der Allowlist.')}
       </Alert>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ListCard title="Allowlist (Whitelist)" subtitle="Immer erlaubte IPs / CIDRs" kind="allow" entries={allow} onAdd={add} onUpdate={update} onDelete={del} />
-        <ListCard title="Blocklist (Blacklist)" subtitle="Immer gesperrte IPs / CIDRs" kind="deny" entries={deny} onAdd={add} onUpdate={update} onDelete={del} />
+        <ListCard title={t('Allowlist (Whitelist)')} subtitle={t('Immer erlaubte IPs / CIDRs')} kind="allow" entries={allow} onAdd={add} onUpdate={update} onDelete={del} />
+        <ListCard title={t('Blocklist (Blacklist)')} subtitle={t('Immer gesperrte IPs / CIDRs')} kind="deny" entries={deny} onAdd={add} onUpdate={update} onDelete={del} />
       </div>
     </div>
   )

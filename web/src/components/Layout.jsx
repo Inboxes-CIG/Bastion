@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import Icon from './Icon.jsx'
 import { me, logout, api } from '../api.js'
+import { t } from '../i18n.js'
 
 const NAV = [
   { to: '/', label: 'Dashboard', icon: 'dashboard', end: true },
@@ -59,14 +60,14 @@ export default function Layout() {
           </div>
           <div>
             <div className="text-white font-bold leading-tight">Bastion</div>
-            <div className="text-[11px] text-slate-400 leading-tight">Control Panel</div>
+            <div className="text-[11px] text-slate-400 leading-tight">{t('Control Panel')}</div>
           </div>
         </div>
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
           {NAV.map(n => (
             <NavLink key={n.to} to={n.to} end={n.end} className={navLink} onClick={() => setOpen(false)}>
               <Icon name={n.icon} className="w-5 h-5" />
-              {n.label}
+              {t(n.label)}
             </NavLink>
           ))}
         </nav>
@@ -76,13 +77,13 @@ export default function Layout() {
             <div className="text-xs text-slate-400">{user?.role || ''}</div>
           </div>
           <button onClick={logout} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800 hover:text-white">
-            <Icon name="logout" className="w-5 h-5" stroke /> Logout
+            <Icon name="logout" className="w-5 h-5" stroke /> {t('Logout')}
           </button>
           <div className="px-3 pt-3 mt-1 border-t border-slate-800 text-[11px] text-slate-500">
             <div>Bastion v{ver?.current || '…'}</div>
             {ver?.update_available && (
               <a href={ver.url} target="_blank" rel="noreferrer" className="text-amber-400 hover:underline">
-                Update verfügbar: v{ver.latest}
+                {t('Update verfügbar: v{version}', { version: ver.latest })}
               </a>
             )}
           </div>
@@ -98,11 +99,11 @@ export default function Layout() {
             <button className="lg:hidden text-slate-500" onClick={() => setOpen(true)}>
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
             </button>
-            <h1 className="text-lg font-semibold text-slate-800">{titleFor(loc.pathname)}</h1>
+            <h1 className="text-lg font-semibold text-slate-800">{t(titleFor(loc.pathname))}</h1>
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Running
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> {t('Running')}
             </span>
             <div className="w-9 h-9 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-semibold text-sm">
               {(user?.email || '?').charAt(0).toUpperCase()}

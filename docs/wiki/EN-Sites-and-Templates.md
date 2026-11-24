@@ -113,7 +113,7 @@ UDP/443 must be open in the firewall.
 - **Disable location** → fall back to the site configuration.
 - Clear the site cache manually after site changes; location changes clear it automatically.
 
-## Known limitations (v1.0.1)
+## Known limitations (v1.0.2)
 
 These fields exist in the model and UI but are **not** applied in the request path yet:
 
@@ -129,4 +129,4 @@ These fields exist in the model and UI but are **not** applied in the request pa
 
 **Effective:** upstream, domains, locations, templates/inheritance, enabled, auth, cache, rate limit, GeoIP and HTTP/3.
 
-Next: [[EN-Certificates|Certificates]]
+Next: [Certificates](https://github.com/Inboxes-CIG/Bastion/wiki/EN-Certificates)

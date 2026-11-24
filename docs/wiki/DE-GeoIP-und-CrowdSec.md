@@ -89,4 +89,4 @@ journalctl -u bastion | grep -i crowdsec
 
 In der GUI zeigt **CrowdSec → Status** Verbindung, letzten Sync, Fehler und Anzahl der Entscheidungen.
 
-Weiter: [[DE-Cache-und-Rate-Limiting|Cache & Rate Limiting]]
+Weiter: [Cache & Rate Limiting](https://github.com/Inboxes-CIG/Bastion/wiki/DE-Cache-und-Rate-Limiting)
