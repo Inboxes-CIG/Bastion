@@ -13,7 +13,7 @@
 - Per-site Basic Auth with user management and 3-failures/5-minutes lockout
 - HTTP/2 and HTTP/3 (QUIC)
 - Rate limiting (token bucket, per site + client IP)
-- Response cache with per-site TTL and size limits
+- HTTP response cache with per-site limits; honors backend Cache-Control (s-maxage/max-age), Expires, ETag/304, Vary and Age, with configurable TTL and size limits
 - Multi-tenancy + RBAC (superadmin, tenant_admin, editor, viewer)
 - Persistent access logs (JSONL) + audit log (logins and changes)
 - Dashboard with live system metrics (CPU, RAM, disk), traffic (24h), top sites and blocked countries

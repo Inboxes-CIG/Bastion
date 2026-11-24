@@ -417,11 +417,13 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 	cacheEnabled := false
 	cacheTTL := 0
 	cacheMaxObj := 0
+	globalTTL := 0
 	if s.Cache != nil {
 		cfg := s.Cache.Config()
 		cacheEnabled = cfg.Enabled
 		cacheTTL = cfg.TTLSeconds
 		cacheMaxObj = cfg.MaxObjectKB
+		globalTTL = cfg.TTLSeconds
 	}
 	if site.CacheEnabled != nil {
 		cacheEnabled = *site.CacheEnabled
@@ -438,18 +440,42 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 	} else if tmpl != nil && tmpl.CacheMaxObjectKB != nil {
 		cacheMaxObj = *tmpl.CacheMaxObjectKB
 	}
+	if cacheTTL <= 0 {
+		cacheTTL = globalTTL
+	}
 
 	cacheKey := ""
 	reqNoCache := strings.Contains(strings.ToLower(r.Header.Get("Cache-Control")), "no-cache") || strings.EqualFold(r.Header.Get("Pragma"), "no-cache")
 	if s.Cache != nil && cacheEnabled && r.Method == http.MethodGet && r.Header.Get("Authorization") == "" && !reqNoCache {
 		cacheKey = r.Host + " " + r.URL.RequestURI() + " " + r.Header.Get("Accept-Encoding")
 		if e, ok := s.Cache.Get(cacheKey); ok {
+			age := int(time.Since(e.Created).Seconds())
+			if age < 0 {
+				age = 0
+			}
+			// Answer conditional GETs from the cache. The client already has
+			// a matching representation, so a body-less 304 is enough.
+			notModified := etagMatches(r.Header.Get("If-None-Match"), e.Header.Get("ETag")) ||
+				notModifiedSince(r.Header.Get("If-Modified-Since"), e.Header.Get("Last-Modified"))
+			if notModified && (e.Header.Get("ETag") != "" || e.Header.Get("Last-Modified") != "") {
+				for k, vals := range e.Header {
+					for _, v := range vals {
+						sw.Header().Add(k, v)
+					}
+				}
+				sw.Header().Set("X-Cache", "HIT")
+				sw.Header().Set("Age", strconv.Itoa(age))
+				sw.Header().Del("Content-Length")
+				sw.WriteHeader(http.StatusNotModified)
+				return
+			}
 			for k, vals := range e.Header {
 				for _, v := range vals {
 					sw.Header().Add(k, v)
 				}
 			}
 			sw.Header().Set("X-Cache", "HIT")
+			sw.Header().Set("Age", strconv.Itoa(age))
 			sw.Header().Set("Content-Length", strconv.Itoa(len(e.Body)))
 			sw.WriteHeader(e.Status)
 			_, _ = sw.Write(e.Body)
@@ -499,17 +525,48 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 		rp.ServeHTTP(tw, r)
 		if !tw.overflow {
 			cacheableStatus := (tw.status >= 200 && tw.status < 300 && tw.status != 206) ||
-				(tw.status >= 300 && tw.status <= 308) || tw.status == 404 || tw.status == 410
-			cc := strings.ToLower(tw.Header().Get("Cache-Control"))
-			vary := strings.ToLower(tw.Header().Get("Vary"))
-			if cacheableStatus && !strings.Contains(cc, "no-cache") && !strings.Contains(cc, "no-store") &&
-				tw.Header().Get("Set-Cookie") == "" && !strings.Contains(vary, "cookie") {
-				s.Cache.Set(cacheKey, site.ID.String(), tw.status, tw.Header(), tw.buf.Bytes(), cacheTTL, cacheMaxObj)
+				(tw.status >= 300 && tw.status <= 308 && tw.status != 304) || tw.status == 404 || tw.status == 410
+			if cacheableStatus && tw.Header().Get("Set-Cookie") == "" && cache.VaryAllowsCaching(tw.Header()) {
+				if ttl, ok := cache.TTLFromHeaders(tw.Header(), cacheTTL); ok {
+					s.Cache.Set(cacheKey, site.ID.String(), tw.status, tw.Header(), tw.buf.Bytes(), ttl, cacheMaxObj)
+				}
 			}
 		}
 	} else {
 		rp.ServeHTTP(sw, r)
 	}
+}
+
+// etagMatches performs the weak comparison used for If-None-Match on GET.
+func etagMatches(header, etag string) bool {
+	if header == "" || etag == "" {
+		return false
+	}
+	want := strings.TrimPrefix(etag, "W/")
+	for _, part := range strings.Split(header, ",") {
+		part = strings.TrimSpace(part)
+		if part == "*" || strings.TrimPrefix(part, "W/") == want {
+			return true
+		}
+	}
+	return false
+}
+
+// notModifiedSince reports whether the stored Last-Modified is not newer than
+// the client's If-Modified-Since value.
+func notModifiedSince(header, lastModified string) bool {
+	if header == "" || lastModified == "" {
+		return false
+	}
+	ims, err := http.ParseTime(header)
+	if err != nil {
+		return false
+	}
+	lm, err := http.ParseTime(lastModified)
+	if err != nil {
+		return false
+	}
+	return !lm.After(ims)
 }
 
 func (s *Server) Start() error {

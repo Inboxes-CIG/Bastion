@@ -390,7 +390,7 @@ export default function SiteDetail() {
             <div className="space-y-5">
               <Tri label="Cache aktiv" value={form.cache_enabled} onChange={v=>setForm({...form,cache_enabled:v})} templateValue={tmpl?.cache_enabled} />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <InheritNumber label="TTL (Sekunden)" value={form.cache_ttl} onChange={v=>setForm({...form,cache_ttl:v})} templateValue={tmpl?.cache_ttl} />
+                <InheritNumber label="TTL (Sekunden, Fallback)" value={form.cache_ttl} onChange={v=>setForm({...form,cache_ttl:v})} templateValue={tmpl?.cache_ttl} />
                 <InheritNumber label="Max. Objektgröße (KB)" value={form.cache_max_object_kb} onChange={v=>setForm({...form,cache_max_object_kb:v})} templateValue={tmpl?.cache_max_object_kb} />
               </div>
               <div className="rounded-lg border border-slate-200 p-4">
@@ -402,7 +402,7 @@ export default function SiteDetail() {
                   </div>
                 )}
               </div>
-              <Alert variant="info">Globaler Schalter und Standardwerte unter Settings → Response-Cache. Hier steuerst du Cache pro Site (Vererbung vom Template möglich).</Alert>
+              <Alert variant="info">Globaler Schalter und Standardwerte unter Settings → Response-Cache. Hier steuerst du Cache pro Site (Vererbung vom Template möglich). Die TTL ist nur Fallback: Liefert das Backend <code>Cache-Control</code> (s-maxage/max-age) oder <code>Expires</code>, gilt dessen Frischezeit; no-store/no-cache/private verhindern das Cachen.</Alert>
             </div>
           )}
 

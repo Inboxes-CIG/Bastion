@@ -215,7 +215,7 @@ export default function Settings() {
               <Button variant="secondary" onClick={clearCache}>Cache leeren</Button>
               {cacheMsg && <span className={`text-sm ${cacheMsg.startsWith('Fehler')?'text-red-600':'text-emerald-600'}`}>{cacheMsg}</span>}
             </div>
-            <div className="mt-3 text-xs text-slate-400">Gecacht werden GET-Antworten (2xx/3xx/404/410) – auch komprimiert (pro Accept-Encoding) und mit Cookies. Ausgenommen: Cache-Control: no-cache/no-store, Set-Cookie oder Vary: Cookie.</div>
+            <div className="mt-3 text-xs text-slate-400">Gecacht werden anonyme GET-Antworten (2xx/3xx/404/410, kein 206). Die Frischezeit kommt aus den Backend-Headern <code>Cache-Control: s-maxage/max-age</code> bzw. <code>Expires</code>; fehlen diese, gilt die TTL hier. Nicht gecacht: <code>no-store</code>, <code>no-cache</code>, <code>private</code>, Set-Cookie, Vary mit anderen Feldern als Accept-Encoding. <code>ETag</code>/<code>Last-Modified</code> werden für 304-Antworten genutzt.</div>
           </>
         )}
       </Card>
