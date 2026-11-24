@@ -57,7 +57,7 @@ func Seed(d *gorm.DB) (string, error) {
 
 	// Superadmin user
 	var superadmin User
-	err = d.Where("email = ?", "admin@waf.local").First(&superadmin).Error
+	err = d.Where("email = ?", "admin@bastion.local").First(&superadmin).Error
 	if err == gorm.ErrRecordNotFound {
 		pw := generateInitialPassword()
 		hash, err := auth.HashPassword(pw)
@@ -66,7 +66,7 @@ func Seed(d *gorm.DB) (string, error) {
 		}
 		u := User{
 			TenantID:     nil,
-			Email:        "admin@waf.local",
+			Email:        "admin@bastion.local",
 			PasswordHash: hash,
 			RoleID:       roleIDs["superadmin"],
 			Active:       true,

@@ -47,7 +47,7 @@ func main() {
 		log.Fatalf("seed: %v", err)
 	} else if pw != "" {
 		log.Printf("=== INITIAL SUPERADMIN CREATED ===")
-		log.Printf("Email: admin@waf.local")
+		log.Printf("Email: admin@bastion.local")
 		log.Printf("Password: %s", pw)
 		log.Printf("Please change this password after first login!")
 		log.Printf("===================================")

@@ -156,7 +156,7 @@ if [ -f "$DIR/dbip-country-lite.mmdb.gz" ]; then
   gunzip -kf "$DIR/dbip-country-lite.mmdb.gz"
   f=$(ls "$DIR"/dbip-country-lite-*.mmdb 2>/dev/null | head -1)
   [ -n "$f" ] && mv -f "$f" "$DIR/dbip-country-lite.mmdb"
-  chown waf:waf "$DIR/dbip-country-lite.mmdb"
+  chown bastion:bastion "$DIR/dbip-country-lite.mmdb"
   systemctl restart bastion || true
 fi
 GEO

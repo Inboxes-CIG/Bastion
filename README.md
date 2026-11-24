@@ -1,6 +1,9 @@
 # Bastion
 
-**Bastion** is a self-hosted reverse proxy and security control panel. It combines TLS termination, automatic Let's Encrypt certificates, GeoIP filtering, CrowdSec integration, IP allow/deny lists, per-site Basic Auth, rate limiting and response caching behind a modern web UI.
+[![Release](https://img.shields.io/github/v/release/Inboxes-CIG/Bastion)](https://github.com/Inboxes-CIG/Bastion/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+**Bastion** is a self-hosted reverse proxy and security control panel. It combines TLS termination, automatic Let's Encrypt certificates, GeoIP filtering, CrowdSec integration, IP allow/deny lists, per-site Basic Auth, optional TOTP two-factor authentication for the GUI, rate limiting and HTTP response caching behind a modern web UI.
 
 ## Features
 
@@ -11,6 +14,7 @@
 - CrowdSec integration (bouncer, alerts, good actors / whitelist)
 - IP allow/deny lists (global + per site)
 - Per-site Basic Auth with user management and 3-failures/5-minutes lockout
+- Optional TOTP MFA for the GUI (Google Authenticator, Authy, 1Password, …)
 - HTTP/2 and HTTP/3 (QUIC)
 - Rate limiting (token bucket, per site + client IP)
 - HTTP response cache with per-site limits; honors backend Cache-Control (s-maxage/max-age), Expires, ETag/304, Vary and Age, with configurable TTL and size limits
@@ -37,13 +41,42 @@ sudo ./install.sh
 
 The installer sets up PostgreSQL, the `bastion` service user, `/etc/bastion/config.yaml`, the systemd unit, CrowdSec and the GeoIP update cron job.
 
+## Upgrade
+
+Re-run the installer. It replaces the binary and keeps `/etc/bastion`, `/var/lib/bastion` and the existing database:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Inboxes-CIG/Bastion/main/get.sh | sudo bash
+```
+
 ## Access
 
 - GUI: `https://<server-ip>/` (accept the self-signed certificate first)
 - API: `http://<server-ip>:8080/api/v1`
-- Initial admin: `admin@waf.local` — password printed once in `journalctl -u bastion`
+- Initial admin: `admin@bastion.local` — password printed once in `journalctl -u bastion`
 
 Change the admin password after the first login.
+
+## Two-factor authentication (optional)
+
+Every user can enable TOTP under **Settings → Zwei-Faktor-Authentifizierung (MFA)**. Scan the QR code with any standard authenticator app and confirm with the generated 6-digit code. The secret is stored encrypted (AES-256-GCM) and login then requires password **and** code.
+
+There are no recovery codes yet. If the authenticator device is lost, an administrator must reset MFA directly in the database:
+
+```sql
+UPDATE users SET mfa_enabled = false, mfa_secret = '' WHERE email = '<user-email>';
+```
+
+## Response cache
+
+Bastion caches anonymous `GET` responses in memory. Requests with an `Authorization` header or `Cache-Control: no-cache` bypass the cache entirely. Freshness is taken from the backend:
+
+- `Cache-Control: s-maxage=N` (preferred) or `max-age=N`
+- `Expires`
+- `Age` is subtracted from the freshness lifetime
+- `ETag` / `Last-Modified` answer conditional requests with `304`
+
+Responses with `Cache-Control: no-store`, `no-cache` or `private`, a `Set-Cookie` header, or a `Vary` header other than `Accept-Encoding` are never stored. The per-site TTL is only a fallback when the backend sends no freshness information. Cache entries live in memory and are cleared on restart.
 
 ## Configuration
 
@@ -72,7 +105,7 @@ go build -ldflags "-X github.com/inboxes-cig/bastion/internal/version.Version=$(
 - Proxy: net/http ReverseProxy with TLS SNI and HTTP/3 (quic-go)
 - Certificates: certmagic (Let's Encrypt) + manual upload
 - GeoIP: DB-IP Lite (MMDB)
-- Security: CrowdSec bouncer, IP lists, per-site Basic Auth, rate limiting
+- Security: CrowdSec bouncer, IP lists, per-site Basic Auth, TOTP MFA, rate limiting
 
 ## License
 
