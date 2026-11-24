@@ -47,7 +47,7 @@ export default function Login() {
         </div>
         <div className="relative">
           <h2 className="text-3xl font-bold leading-tight mb-4">{t('Schutz für deine')}<br/>{t('Web-Anwendungen.')}</h2>
-          <p className="text-slate-400 max-w-md">Reverse-Proxy, TLS-Zertifikate, GeoIP-Filter.</p>
+          <p className="text-slate-400 max-w-md">{t('Reverse-Proxy, TLS-Zertifikate, GeoIP-Filter.')}</p>
         </div>
         <div className="text-sm text-slate-500 relative flex items-center gap-3">
           <span>© 2026 Inboxes</span>

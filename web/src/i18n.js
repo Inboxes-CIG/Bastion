@@ -96,6 +96,7 @@ const en = {
   'Zurück zur Anmeldung': 'Back to sign in',
   'Schutz für deine': 'Protection for your',
   'Web-Anwendungen.': 'web applications.',
+  'Reverse-Proxy, TLS-Zertifikate, GeoIP-Filter.': 'Reverse proxy, TLS certificates, GeoIP filtering.',
 
   // Dashboard
   'Neue Version verfügbar:': 'New version available:',
