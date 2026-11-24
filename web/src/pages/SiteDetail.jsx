@@ -40,7 +40,7 @@ const TABS = [
   { id: 'advanced', label: t('Erweitert') },
 ]
 
-function Tri({ label, value, onChange, templateValue, inheritLabel = 'vom Template' }) {
+function Tri({ label, value, onChange, templateValue, inheritLabel = t('vom Template') }) {
   return (
     <div className="flex items-center justify-between py-2">
       <div>
@@ -67,7 +67,7 @@ function InheritNumber({ label, value, onChange, templateValue }) {
       <div className="flex items-center justify-between mb-1">
         <label className="text-sm text-slate-700">{label}</label>
         <label className="flex items-center gap-1 text-xs text-slate-500">
-          <input type="checkbox" checked={inherited} onChange={e=>onChange(e.target.checked?null:0)} /> inherit
+          <input type="checkbox" checked={inherited} onChange={e=>onChange(e.target.checked?null:0)} /> {t('inherit')}
         </label>
       </div>
       {inherited
@@ -84,7 +84,7 @@ function InheritText({ label, value, onChange, templateValue, placeholder }) {
       <div className="flex items-center justify-between mb-1">
         <label className="text-sm text-slate-700">{label}</label>
         <label className="flex items-center gap-1 text-xs text-slate-500">
-          <input type="checkbox" checked={inherited} onChange={e=>onChange(e.target.checked?null:'')} /> inherit
+          <input type="checkbox" checked={inherited} onChange={e=>onChange(e.target.checked?null:'')} /> {t('inherit')}
         </label>
       </div>
       {inherited
@@ -351,7 +351,7 @@ export default function SiteDetail() {
                 </Select>
               </Field>
               <Field label="Status">
-                <div className="pt-2"><Toggle checked={form.enabled} onChange={v=>setForm({...form,enabled:v})} label={form.enabled?'Aktiv':'Deaktiviert'} /></div>
+                <div className="pt-2"><Toggle checked={form.enabled} onChange={v=>setForm({...form,enabled:v})} label={form.enabled?t('Aktiv'):t('Deaktiviert')} /></div>
               </Field>
             </div>
           )}
@@ -404,7 +404,7 @@ export default function SiteDetail() {
                 </div>
               )}
               {locErr && !locForm && <div className="text-sm text-red-600">{locErr}</div>}
-              <Alert variant="info">Locations erben nicht gesetzte Werte von der Site bzw. dem Template. Der längste Prefix gewinnt: <code>/api</code> matcht <code>/api</code> und <code>/api/v1</code>, aber nicht <code>/apix</code>.</Alert>
+              <Alert variant="info">{t('Locations erben nicht gesetzte Werte von der Site bzw. dem Template. Der längste Prefix gewinnt: /api matcht /api und /api/v1, aber nicht /apix.')}</Alert>
             </div>
           )}
 
@@ -417,7 +417,7 @@ export default function SiteDetail() {
                 </div>
                 {currentCert && (
                   <div className="text-sm text-slate-600 mb-3">
-                    {currentCert.domain} · gültig bis {currentCert.not_after ? new Date(currentCert.not_after).toLocaleDateString() : '—'} · {currentCert.issuer}
+                    {currentCert.domain} · {t('gültig bis')} {currentCert.not_after ? new Date(currentCert.not_after).toLocaleDateString() : '—'} · {currentCert.issuer}
                   </div>
                 )}
                 <div className="text-sm text-slate-600 mb-1">{t('Domains im Zertifikat (SAN):')}</div>
@@ -439,7 +439,7 @@ export default function SiteDetail() {
                       <Input value={leEmail} onChange={e=>setLeEmail(e.target.value)} placeholder="admin@example.com" />
                     </div>
                     <Button variant="success" onClick={issueLE} disabled={leBusy || !leEmail}>
-                      <Icon name="certs" className="w-4 h-4" /> {leBusy ? 'Stelle aus...' : (currentCert ? 'Neu ausstellen' : 'Ausstellen')}
+                      <Icon name="certs" className="w-4 h-4" /> {leBusy ? t('Stelle aus...') : (currentCert ? t('Neu ausstellen') : t('Ausstellen'))}
                     </Button>
                   </div>
                 )}
@@ -558,7 +558,7 @@ export default function SiteDetail() {
                       <Input value={userForm.username} onChange={e=>setUserForm({...userForm,username:e.target.value})} placeholder={t('Benutzername')} className="flex-1" required />
                       <Input type="password" value={userForm.password} onChange={e=>setUserForm({...userForm,password:e.target.value})} placeholder={userEditing ? 'Neues Passwort (optional)' : 'Passwort'} className="flex-1" required={!userEditing} />
                       <Toggle checked={userForm.active} onChange={v=>setUserForm({...userForm,active:v})} label={t('aktiv')} />
-                      <Button type="submit" variant="success">{userEditing ? 'Speichern' : 'Hinzufügen'}</Button>
+                      <Button type="submit" variant="success">{userEditing ? 'Speichern' : t('Hinzufügen')}</Button>
                       {userEditing && <Button type="button" variant="secondary" onClick={()=>{setUserEditing(null);setUserForm({username:'',password:'',active:true})}}>{t('Abbrechen')}</Button>}
                     </form>
                     {userErr && <div className="text-sm text-red-600 mb-2">{userErr}</div>}
@@ -586,7 +586,7 @@ export default function SiteDetail() {
                       <Select value={ruleForm.kind} onChange={e=>setRuleForm({...ruleForm,kind:e.target.value})}><option value="allow">Allow</option><option value="deny">Deny</option></Select>
                       <Input value={ruleForm.value} onChange={e=>setRuleForm({...ruleForm,value:e.target.value})} placeholder={t('IP oder CIDR')} className="flex-1" required />
                       <Input value={ruleForm.note} onChange={e=>setRuleForm({...ruleForm,note:e.target.value})} placeholder={t('Notiz')} className="sm:w-40" />
-                      <Button type="submit" variant="success">{ruleEditing ? 'Speichern' : 'Hinzufügen'}</Button>
+                      <Button type="submit" variant="success">{ruleEditing ? 'Speichern' : t('Hinzufügen')}</Button>
                       {ruleEditing && <Button type="button" variant="secondary" onClick={()=>{setRuleEditing(null);setRuleForm({kind:'allow',value:'',note:''})}}>{t('Abbrechen')}</Button>}
                     </form>
                     {ruleErr && <div className="text-sm text-red-600 mb-2">{ruleErr}</div>}
@@ -609,7 +609,7 @@ export default function SiteDetail() {
                     )}
                   </div>
 
-                  <Alert variant="info">Ist Auth aktiv und die IP in der Allow-Liste der gewählten Ebene (Site oder Location), ist kein Login nötig. Die globale IP-Whitelist hebt den Login NICHT auf. Nach 3 Fehlversuchen wird die IP 5 Minuten gesperrt (429).</Alert>
+                  <Alert variant="info">{t('Ist Auth aktiv und die IP in der Allow-Liste der gewählten Ebene (Site oder Location), ist kein Login nötig. Die globale IP-Whitelist hebt den Login NICHT auf. Nach 3 Fehlversuchen wird die IP 5 Minuten gesperrt (429).')}</Alert>
                 </>
               )}
             </div>
