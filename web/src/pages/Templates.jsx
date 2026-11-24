@@ -3,7 +3,7 @@ import { api } from '../api.js'
 import { Card, Button, Input, Select, Field, Modal, Table, Toggle, Alert, EmptyState, Spinner, MultiSelect } from '../components/UI.jsx'
 import Icon from '../components/Icon.jsx'
 
-const empty = { name:'', description:'', tenant_id:'', upstream_url:'', upstream_host:'', geoip_enabled:false, geoip_mode:'allow', geoip_countries:[], http2_enabled:true, http3_enabled:false, force_https:true, hsts_enabled:true, hsts_max_age:31536000, websocket_enabled:false, compression_enabled:true, rate_limit_rps:0, rate_limit_burst:0, max_body_size_mb:0, cache_enabled:true, cache_ttl:60, cache_max_object_kb:256, auth_enabled:false }
+const empty = { name:'', description:'', tenant_id:'', upstream_url:'', upstream_host:'', upstream_insecure_skip_verify:false, geoip_enabled:false, geoip_mode:'allow', geoip_countries:[], http2_enabled:true, http3_enabled:false, force_https:true, hsts_enabled:true, hsts_max_age:31536000, websocket_enabled:false, compression_enabled:true, rate_limit_rps:0, rate_limit_burst:0, max_body_size_mb:0, cache_enabled:true, cache_ttl:60, cache_max_object_kb:256, auth_enabled:false }
 
 export default function Templates() {
   const [items, setItems] = useState(null)
@@ -21,7 +21,7 @@ export default function Templates() {
   const openEdit = (t) => {
     setEditing(t.id)
     setForm({
-      name:t.name, description:t.description||'', tenant_id:t.tenant_id, upstream_url:t.upstream_url||'', upstream_host:t.upstream_host||'',
+      name:t.name, description:t.description||'', tenant_id:t.tenant_id, upstream_url:t.upstream_url||'', upstream_host:t.upstream_host||'', upstream_insecure_skip_verify:t.upstream_insecure_skip_verify??false,
       geoip_enabled:t.geoip_enabled??false, geoip_mode:t.geoip_mode||'allow', geoip_countries:t.geoip_countries||[], http2_enabled:t.http2_enabled??true,
       http3_enabled:t.http3_enabled??false, force_https:t.force_https??true, hsts_enabled:t.hsts_enabled??true,
       hsts_max_age:t.hsts_max_age??31536000, websocket_enabled:t.websocket_enabled??false,
@@ -99,6 +99,7 @@ export default function Templates() {
           <Toggle checked={form.websocket_enabled} onChange={v=>setForm({...form,websocket_enabled:v})} label="WebSocket" />
           <Toggle checked={form.compression_enabled} onChange={v=>setForm({...form,compression_enabled:v})} label="Compression" />
           <Toggle checked={form.auth_enabled===true} onChange={v=>setForm({...form,auth_enabled:v})} label="Auth (Basic)" />
+          <Toggle checked={form.upstream_insecure_skip_verify} onChange={v=>setForm({...form,upstream_insecure_skip_verify:v})} label="Upstream TLS ignorieren" />
         </div>
       </Modal>
     </div>

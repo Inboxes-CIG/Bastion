@@ -1,10 +1,12 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/inboxes-cig/bastion/internal/audit"
 	"github.com/inboxes-cig/bastion/internal/auth"
 	"github.com/inboxes-cig/bastion/internal/db"
 	"gorm.io/gorm"
@@ -29,12 +31,12 @@ func (h *UserHandler) List(c *gin.Context) {
 }
 
 type userRequest struct {
-	Email    string     `json:"email" binding:"required,email"`
-	Password string     `json:"password"`
-	RoleID   uuid.UUID  `json:"role_id" binding:"required"`
-	TenantID *uuid.UUID `json:"tenant_id"`
-	ClearTenant bool     `json:"clear_tenant"`
-	Active   *bool      `json:"active"`
+	Email       string     `json:"email" binding:"required,email"`
+	Password    string     `json:"password"`
+	RoleID      uuid.UUID  `json:"role_id" binding:"required"`
+	TenantID    *uuid.UUID `json:"tenant_id"`
+	ClearTenant bool       `json:"clear_tenant"`
+	Active      *bool      `json:"active"`
 }
 
 func (h *UserHandler) Create(c *gin.Context) {
@@ -130,6 +132,10 @@ func (h *UserHandler) Delete(c *gin.Context) {
 	if err != nil {
 		BadRequest(c, "invalid id")
 		return
+	}
+	var u db.User
+	if err := h.DB.Select("email").First(&u, "id = ?", id).Error; err == nil {
+		audit.SetDetail(c, fmt.Sprintf("Benutzer %q gelöscht", u.Email))
 	}
 	if err := h.DB.Delete(&db.User{}, "id = ?", id).Error; err != nil {
 		InternalError(c, err.Error())

@@ -1,10 +1,12 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/inboxes-cig/bastion/internal/audit"
 	"github.com/inboxes-cig/bastion/internal/auth"
 	"github.com/inboxes-cig/bastion/internal/db"
 	"gorm.io/gorm"
@@ -29,14 +31,15 @@ func (h *SiteHandler) List(c *gin.Context) {
 }
 
 type siteRequest struct {
-	TenantID     string   `json:"tenant_id"`
-	TemplateID   *string  `json:"template_id"`
-	Domain       string   `json:"domain" binding:"required"`
-	ExtraDomains []string `json:"extra_domains"`
-	UpstreamURL  *string  `json:"upstream_url"`
-	UpstreamHost *string  `json:"upstream_host"`
-	CertID       *string  `json:"cert_id"`
-	Enabled      *bool    `json:"enabled"`
+	TenantID                   string   `json:"tenant_id"`
+	TemplateID                 *string  `json:"template_id"`
+	Domain                     string   `json:"domain" binding:"required"`
+	ExtraDomains               []string `json:"extra_domains"`
+	UpstreamURL                *string  `json:"upstream_url"`
+	UpstreamHost               *string  `json:"upstream_host"`
+	UpstreamInsecureSkipVerify *bool    `json:"upstream_insecure_skip_verify"`
+	CertID                     *string  `json:"cert_id"`
+	Enabled                    *bool    `json:"enabled"`
 
 	// Override fields (nil = inherit from template)
 	GeoIPEnabled       *bool     `json:"geoip_enabled"`
@@ -79,29 +82,30 @@ func (h *SiteHandler) Create(c *gin.Context) {
 		return
 	}
 	site := db.Site{
-		TenantID:           tid,
-		Domain:             req.Domain,
-		ExtraDomains:       db.StringArray(req.ExtraDomains),
-		UpstreamURL:        req.UpstreamURL,
-		UpstreamHost:       req.UpstreamHost,
-		GeoIPEnabled:       req.GeoIPEnabled,
-		GeoIPMode:          req.GeoIPMode,
-		GeoIPCountries:     toStrArray(req.GeoIPCountries),
-		HTTP2Enabled:       req.HTTP2Enabled,
-		HTTP3Enabled:       req.HTTP3Enabled,
-		ForceHTTPS:         req.ForceHTTPS,
-		HSTSEnabled:        req.HSTSEnabled,
-		HSTSMaxAge:         req.HSTSMaxAge,
-		WebSocketEnabled:   req.WebSocketEnabled,
-		CompressionEnabled: req.CompressionEnabled,
-		RateLimitRPS:       req.RateLimitRPS,
-		RateLimitBurst:     req.RateLimitBurst,
-		MaxBodySizeMB:      req.MaxBodySizeMB,
-		CacheEnabled:       req.CacheEnabled,
-		CacheTTL:           req.CacheTTL,
-		CacheMaxObjectKB:   req.CacheMaxObjectKB,
-		AuthEnabled:        req.AuthEnabled,
-		Enabled:            true,
+		TenantID:                   tid,
+		Domain:                     req.Domain,
+		ExtraDomains:               db.StringArray(req.ExtraDomains),
+		UpstreamURL:                req.UpstreamURL,
+		UpstreamHost:               req.UpstreamHost,
+		UpstreamInsecureSkipVerify: req.UpstreamInsecureSkipVerify,
+		GeoIPEnabled:               req.GeoIPEnabled,
+		GeoIPMode:                  req.GeoIPMode,
+		GeoIPCountries:             toStrArray(req.GeoIPCountries),
+		HTTP2Enabled:               req.HTTP2Enabled,
+		HTTP3Enabled:               req.HTTP3Enabled,
+		ForceHTTPS:                 req.ForceHTTPS,
+		HSTSEnabled:                req.HSTSEnabled,
+		HSTSMaxAge:                 req.HSTSMaxAge,
+		WebSocketEnabled:           req.WebSocketEnabled,
+		CompressionEnabled:         req.CompressionEnabled,
+		RateLimitRPS:               req.RateLimitRPS,
+		RateLimitBurst:             req.RateLimitBurst,
+		MaxBodySizeMB:              req.MaxBodySizeMB,
+		CacheEnabled:               req.CacheEnabled,
+		CacheTTL:                   req.CacheTTL,
+		CacheMaxObjectKB:           req.CacheMaxObjectKB,
+		AuthEnabled:                req.AuthEnabled,
+		Enabled:                    true,
 	}
 	if req.Enabled != nil {
 		site.Enabled = *req.Enabled
@@ -165,6 +169,7 @@ func (h *SiteHandler) Update(c *gin.Context) {
 	if req.UpstreamHost != nil {
 		site.UpstreamHost = req.UpstreamHost
 	}
+	site.UpstreamInsecureSkipVerify = req.UpstreamInsecureSkipVerify
 	if req.TemplateID != nil {
 		if *req.TemplateID == "" {
 			site.TemplateID = nil
@@ -213,6 +218,10 @@ func (h *SiteHandler) Delete(c *gin.Context) {
 	if err != nil {
 		BadRequest(c, "invalid id")
 		return
+	}
+	var site db.Site
+	if err := h.DB.Select("domain").First(&site, "id = ?", id).Error; err == nil {
+		audit.SetDetail(c, fmt.Sprintf("Site %q gelöscht", site.Domain))
 	}
 	if err := h.DB.Delete(&db.Site{}, "id = ?", id).Error; err != nil {
 		InternalError(c, err.Error())
@@ -264,6 +273,7 @@ func EffectiveSiteConfig(site db.Site, tmpl *db.SiteTemplate) map[string]interfa
 			cfg["upstream_url"] = tmpl.UpstreamURL
 		}
 	}
+	cfg["upstream_insecure_skip_verify"] = getBool(site.UpstreamInsecureSkipVerify, nil)
 	cfg["geoip_enabled"] = getBool(site.GeoIPEnabled, nil)
 	cfg["geoip_mode"] = getStr(site.GeoIPMode, nil)
 	cfg["http2_enabled"] = getBool(site.HTTP2Enabled, nil)
@@ -279,6 +289,9 @@ func EffectiveSiteConfig(site db.Site, tmpl *db.SiteTemplate) map[string]interfa
 	if tmpl != nil {
 		if site.GeoIPEnabled == nil {
 			cfg["geoip_enabled"] = tmpl.GeoIPEnabled
+		}
+		if site.UpstreamInsecureSkipVerify == nil {
+			cfg["upstream_insecure_skip_verify"] = tmpl.UpstreamInsecureSkipVerify
 		}
 		if site.GeoIPMode == nil {
 			cfg["geoip_mode"] = tmpl.GeoIPMode

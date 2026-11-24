@@ -1,10 +1,12 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/inboxes-cig/bastion/internal/audit"
 	"github.com/inboxes-cig/bastion/internal/auth"
 	"github.com/inboxes-cig/bastion/internal/db"
 	"gorm.io/gorm"
@@ -96,6 +98,10 @@ func (h *TenantHandler) Delete(c *gin.Context) {
 	if err != nil {
 		BadRequest(c, "invalid id")
 		return
+	}
+	var t db.Tenant
+	if err := h.DB.Select("name").First(&t, "id = ?", id).Error; err == nil {
+		audit.SetDetail(c, fmt.Sprintf("Tenant %q gelöscht", t.Name))
 	}
 	if err := h.DB.Delete(&db.Tenant{}, "id = ?", id).Error; err != nil {
 		InternalError(c, err.Error())

@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/inboxes-cig/bastion/internal/audit"
 	"github.com/inboxes-cig/bastion/internal/cache"
 	"github.com/inboxes-cig/bastion/internal/db"
 	"gorm.io/gorm"
@@ -22,18 +23,19 @@ type locationRequest struct {
 	PathPrefix string `json:"path_prefix"`
 	Enabled    *bool  `json:"enabled"`
 
-	UpstreamURL      *string   `json:"upstream_url"`
-	UpstreamHost     *string   `json:"upstream_host"`
-	GeoIPEnabled     *bool     `json:"geoip_enabled"`
-	GeoIPMode        *string   `json:"geoip_mode"`
-	GeoIPCountries   *[]string `json:"geoip_countries"`
-	HTTP3Enabled     *bool     `json:"http3_enabled"`
-	RateLimitRPS     *int      `json:"rate_limit_rps"`
-	RateLimitBurst   *int      `json:"rate_limit_burst"`
-	CacheEnabled     *bool     `json:"cache_enabled"`
-	CacheTTL         *int      `json:"cache_ttl"`
-	CacheMaxObjectKB *int      `json:"cache_max_object_kb"`
-	AuthEnabled      *bool     `json:"auth_enabled"`
+	UpstreamURL                *string   `json:"upstream_url"`
+	UpstreamHost               *string   `json:"upstream_host"`
+	UpstreamInsecureSkipVerify *bool     `json:"upstream_insecure_skip_verify"`
+	GeoIPEnabled               *bool     `json:"geoip_enabled"`
+	GeoIPMode                  *string   `json:"geoip_mode"`
+	GeoIPCountries             *[]string `json:"geoip_countries"`
+	HTTP3Enabled               *bool     `json:"http3_enabled"`
+	RateLimitRPS               *int      `json:"rate_limit_rps"`
+	RateLimitBurst             *int      `json:"rate_limit_burst"`
+	CacheEnabled               *bool     `json:"cache_enabled"`
+	CacheTTL                   *int      `json:"cache_ttl"`
+	CacheMaxObjectKB           *int      `json:"cache_max_object_kb"`
+	AuthEnabled                *bool     `json:"auth_enabled"`
 }
 
 func normalizePathPrefix(p string) (string, error) {
@@ -112,21 +114,22 @@ func (h *LocationHandler) Create(c *gin.Context) {
 		return
 	}
 	loc := db.SiteLocation{
-		SiteID:           siteID,
-		PathPrefix:       prefix,
-		Enabled:          true,
-		UpstreamURL:      req.UpstreamURL,
-		UpstreamHost:     req.UpstreamHost,
-		GeoIPEnabled:     req.GeoIPEnabled,
-		GeoIPMode:        req.GeoIPMode,
-		GeoIPCountries:   toStrArray(req.GeoIPCountries),
-		HTTP3Enabled:     req.HTTP3Enabled,
-		RateLimitRPS:     req.RateLimitRPS,
-		RateLimitBurst:   req.RateLimitBurst,
-		CacheEnabled:     req.CacheEnabled,
-		CacheTTL:         req.CacheTTL,
-		CacheMaxObjectKB: req.CacheMaxObjectKB,
-		AuthEnabled:      req.AuthEnabled,
+		SiteID:                     siteID,
+		PathPrefix:                 prefix,
+		Enabled:                    true,
+		UpstreamURL:                req.UpstreamURL,
+		UpstreamHost:               req.UpstreamHost,
+		UpstreamInsecureSkipVerify: req.UpstreamInsecureSkipVerify,
+		GeoIPEnabled:               req.GeoIPEnabled,
+		GeoIPMode:                  req.GeoIPMode,
+		GeoIPCountries:             toStrArray(req.GeoIPCountries),
+		HTTP3Enabled:               req.HTTP3Enabled,
+		RateLimitRPS:               req.RateLimitRPS,
+		RateLimitBurst:             req.RateLimitBurst,
+		CacheEnabled:               req.CacheEnabled,
+		CacheTTL:                   req.CacheTTL,
+		CacheMaxObjectKB:           req.CacheMaxObjectKB,
+		AuthEnabled:                req.AuthEnabled,
 	}
 	if req.Enabled != nil {
 		loc.Enabled = *req.Enabled
@@ -178,6 +181,7 @@ func (h *LocationHandler) Update(c *gin.Context) {
 	}
 	loc.UpstreamURL = req.UpstreamURL
 	loc.UpstreamHost = req.UpstreamHost
+	loc.UpstreamInsecureSkipVerify = req.UpstreamInsecureSkipVerify
 	loc.GeoIPEnabled = req.GeoIPEnabled
 	loc.GeoIPMode = req.GeoIPMode
 	loc.GeoIPCountries = toStrArray(req.GeoIPCountries)
@@ -206,6 +210,10 @@ func (h *LocationHandler) Delete(c *gin.Context) {
 	if err != nil {
 		BadRequest(c, "invalid location id")
 		return
+	}
+	var loc db.SiteLocation
+	if err := h.DB.Select("path_prefix").First(&loc, "id = ? AND site_id = ?", lid, siteID).Error; err == nil {
+		audit.SetDetail(c, "Location \""+loc.PathPrefix+"\" gelöscht")
 	}
 	if err := h.DB.Delete(&db.SiteLocation{}, "id = ? AND site_id = ?", lid, siteID).Error; err != nil {
 		InternalError(c, err.Error())

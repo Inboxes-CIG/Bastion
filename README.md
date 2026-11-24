@@ -5,6 +5,13 @@
 
 **Bastion** is a self-hosted reverse proxy and security control panel. It combines TLS termination, automatic Let's Encrypt certificates, GeoIP filtering, CrowdSec integration, IP allow/deny lists, per-site Basic Auth, optional TOTP two-factor authentication for the GUI, rate limiting and HTTP response caching behind a modern web UI.
 
+## Documentation
+
+Full documentation is available in German and English in the [Wiki](https://github.com/Inboxes-CIG/Bastion/wiki):
+
+- [Deutsch](https://github.com/Inboxes-CIG/Bastion/wiki/DE-Start)
+- [English](https://github.com/Inboxes-CIG/Bastion/wiki/EN-Home)
+
 ## Features
 
 - Reverse proxy with TLS termination (SNI certificates)

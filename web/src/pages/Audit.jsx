@@ -33,15 +33,16 @@ export default function Audit() {
           <option value="update">Ändern</option>
           <option value="delete">Löschen</option>
         </Select>
-        <Input value={q} onChange={e=>setQ(e.target.value)} placeholder="User, Pfad, Ressource..." />
+        <Input value={q} onChange={e=>setQ(e.target.value)} placeholder="User, Vorgang, Pfad, Ressource..." />
       </div>
       <Card className="p-0">
         {items.length === 0 ? <EmptyState icon="clock" title="Keine Audit-Einträge" /> : (
-          <Table columns={['Zeit','User','Aktion','Ressource','Request','Status','IP']} rows={items} renderRow={e=>(
+          <Table columns={['Zeit','User','Aktion','Vorgang','Ressource','Request','Status','IP']} rows={items} renderRow={e=>(
             <tr key={e.id} className="border-b border-slate-100 hover:bg-slate-50">
               <td className="px-4 py-2 text-xs text-slate-500 whitespace-nowrap">{new Date(e.created_at).toLocaleString()}</td>
               <td className="px-4 py-2 text-sm text-slate-800">{e.user_email || '—'}</td>
               <td className="px-4 py-2"><Badge variant={variant(e.action)}>{label(e.action)}</Badge></td>
+              <td className="px-4 py-2 text-sm text-slate-800">{e.details || '—'}</td>
               <td className="px-4 py-2 text-sm text-slate-600">{e.resource || '—'}</td>
               <td className="px-4 py-2 text-xs font-mono text-slate-500">{e.method} {e.path}</td>
               <td className="px-4 py-2"><Badge variant={e.status < 400 ? 'green' : 'red'}>{e.status}</Badge></td>

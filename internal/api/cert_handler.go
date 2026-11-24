@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/inboxes-cig/bastion/internal/audit"
 	"github.com/inboxes-cig/bastion/internal/auth"
 	"github.com/inboxes-cig/bastion/internal/cert"
 	"github.com/inboxes-cig/bastion/internal/db"
@@ -12,8 +13,8 @@ import (
 )
 
 type CertHandler struct {
-	DB     *gorm.DB
-	Certs  *cert.Manager
+	DB    *gorm.DB
+	Certs *cert.Manager
 }
 
 type certRequest struct {
@@ -133,6 +134,7 @@ func (h *CertHandler) Delete(c *gin.Context) {
 		InternalError(c, err.Error())
 		return
 	}
+	audit.SetDetail(c, "Zertifikat \""+cert.Domain+"\" gelöscht")
 	c.Status(http.StatusNoContent)
 }
 

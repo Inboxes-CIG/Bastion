@@ -18,7 +18,7 @@ func (h *AuditHandler) List(c *gin.Context) {
 	}
 	if s := c.Query("q"); s != "" {
 		like := "%" + s + "%"
-		q = q.Where("user_email ILIKE ? OR path ILIKE ? OR resource ILIKE ?", like, like, like)
+		q = q.Where("user_email ILIKE ? OR path ILIKE ? OR resource ILIKE ? OR details ILIKE ? OR resource_id ILIKE ?", like, like, like, like, like)
 	}
 	if cl := auth.ClaimsFromContext(c); cl != nil && cl.RoleName != "superadmin" && cl.TenantID != nil {
 		q = q.Where("tenant_id = ?", *cl.TenantID)

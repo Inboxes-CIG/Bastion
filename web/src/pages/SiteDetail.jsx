@@ -7,7 +7,7 @@ import Icon from '../components/Icon.jsx'
 function emptyForm() {
   return {
     domain: '', extra_domains: '', tenant_id: '', template_id: '', cert_id: '', enabled: true,
-    upstream_url: null, upstream_host: null, geoip_enabled: null, geoip_mode: null, geoip_countries: null,
+    upstream_url: null, upstream_host: null, upstream_insecure_skip_verify: null, geoip_enabled: null, geoip_mode: null, geoip_countries: null,
     http2_enabled: null, http3_enabled: null, force_https: null, hsts_enabled: null, hsts_max_age: null,
     websocket_enabled: null, compression_enabled: null,
     rate_limit_rps: null, rate_limit_burst: null, max_body_size_mb: null,
@@ -18,7 +18,7 @@ function emptyForm() {
 function emptyLocation() {
   return {
     id: null, path_prefix: '/', enabled: true,
-    upstream_url: null, upstream_host: null,
+    upstream_url: null, upstream_host: null, upstream_insecure_skip_verify: null,
     auth_enabled: null, cache_enabled: null, cache_ttl: null, cache_max_object_kb: null,
     rate_limit_rps: null, rate_limit_burst: null,
     geoip_enabled: null, geoip_mode: null, geoip_countries: null,
@@ -133,7 +133,7 @@ export default function SiteDetail() {
     setForm({
       domain: s.domain, extra_domains: (s.extra_domains||[]).join(', '), tenant_id: s.tenant_id,
       template_id: s.template_id||'', cert_id: s.cert_id||'', enabled: s.enabled,
-      upstream_url: s.upstream_url, upstream_host: s.upstream_host, geoip_enabled: s.geoip_enabled, geoip_mode: s.geoip_mode, geoip_countries: s.geoip_countries,
+      upstream_url: s.upstream_url, upstream_host: s.upstream_host, upstream_insecure_skip_verify: s.upstream_insecure_skip_verify, geoip_enabled: s.geoip_enabled, geoip_mode: s.geoip_mode, geoip_countries: s.geoip_countries,
       http2_enabled: s.http2_enabled, http3_enabled: s.http3_enabled, force_https: s.force_https,
       hsts_enabled: s.hsts_enabled, hsts_max_age: s.hsts_max_age, websocket_enabled: s.websocket_enabled,
       compression_enabled: s.compression_enabled, rate_limit_rps: s.rate_limit_rps, rate_limit_burst: s.rate_limit_burst,
@@ -224,6 +224,7 @@ export default function SiteDetail() {
         enabled: locForm.enabled,
         upstream_url: locForm.upstream_url || null,
         upstream_host: locForm.upstream_host || null,
+        upstream_insecure_skip_verify: locForm.upstream_insecure_skip_verify,
         auth_enabled: locForm.auth_enabled,
         cache_enabled: locForm.cache_enabled,
         cache_ttl: locForm.cache_ttl,
@@ -573,6 +574,8 @@ export default function SiteDetail() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <InheritText label="Upstream URL" value={form.upstream_url} onChange={v=>setForm({...form,upstream_url:v})} templateValue={tmpl?.upstream_url} placeholder="http://backend:8080" />
               <InheritText label="Upstream Host / Name (Host-Header)" value={form.upstream_host} onChange={v=>setForm({...form,upstream_host:v})} templateValue={tmpl?.upstream_host} placeholder="z.B. backend.internal (leer = Original-Host)" />
+              <Tri label="Upstream-TLS-Zertifikat ignorieren" value={form.upstream_insecure_skip_verify} onChange={v=>setForm({...form,upstream_insecure_skip_verify:v})} templateValue={tmpl?.upstream_insecure_skip_verify} />
+              <div className="sm:col-span-2"><Alert variant="warn">Nur für Upstreams mit selbstsigniertem Zertifikat. Deaktiviert die TLS-Zertifikatsprüfung zum Backend.</Alert></div>
               <InheritNumber label="Rate Limit RPS" value={form.rate_limit_rps} onChange={v=>setForm({...form,rate_limit_rps:v})} templateValue={tmpl?.rate_limit_rps} />
               <InheritNumber label="Rate Limit Burst" value={form.rate_limit_burst} onChange={v=>setForm({...form,rate_limit_burst:v})} templateValue={tmpl?.rate_limit_burst} />
               <InheritNumber label="Max Body Size (MB)" value={form.max_body_size_mb} onChange={v=>setForm({...form,max_body_size_mb:v})} templateValue={tmpl?.max_body_size_mb} />
@@ -603,6 +606,7 @@ export default function SiteDetail() {
               </Field>
               <InheritText label="Upstream URL" value={locForm.upstream_url} onChange={v=>setLocForm({...locForm,upstream_url:v})} templateValue={inherited('upstream_url')} placeholder="http://backend:8080" />
               <InheritText label="Upstream Host / Name" value={locForm.upstream_host} onChange={v=>setLocForm({...locForm,upstream_host:v})} templateValue={inherited('upstream_host')} placeholder="leer = Site-Wert" />
+              <Tri label="Upstream-TLS-Zertifikat ignorieren" value={locForm.upstream_insecure_skip_verify} onChange={v=>setLocForm({...locForm,upstream_insecure_skip_verify:v})} templateValue={inherited('upstream_insecure_skip_verify')} inheritLabel="von der Site" />
             </div>
 
             <div className="rounded-lg border border-slate-200 p-4 space-y-1">

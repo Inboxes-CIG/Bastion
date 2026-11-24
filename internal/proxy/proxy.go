@@ -30,21 +30,22 @@ import (
 )
 
 type Server struct {
-	DB           *gorm.DB
-	Certs        *cert.Manager
-	GeoIP        *geoip.Lookup
-	CrowdSec     *crowdsec.Client
-	Log          *accesslog.Logger
-	IPList       *iplist.List
-	RateLimiter  *ratelimit.Limiter
-	Cache        *cache.Cache
-	HTTP3Enabled bool
-	Access       *siteaccess.Cache
-	Lockout      *siteaccess.Lockout
-	AutoBan      *autoban.Detector
-	HTTPAddr     string
-	HTTPSAddr    string
-	AdminHosts   map[string]bool
+	DB                *gorm.DB
+	Certs             *cert.Manager
+	GeoIP             *geoip.Lookup
+	CrowdSec          *crowdsec.Client
+	Log               *accesslog.Logger
+	IPList            *iplist.List
+	RateLimiter       *ratelimit.Limiter
+	Cache             *cache.Cache
+	HTTP3Enabled      bool
+	Access            *siteaccess.Cache
+	Lockout           *siteaccess.Lockout
+	AutoBan           *autoban.Detector
+	InsecureTransport *http.Transport
+	HTTPAddr          string
+	HTTPSAddr         string
+	AdminHosts        map[string]bool
 }
 
 func NewServer(db *gorm.DB, cm *cert.Manager, g *geoip.Lookup, cs *crowdsec.Client, lg *accesslog.Logger, il *iplist.List, rl *ratelimit.Limiter, ca *cache.Cache, httpAddr, httpsAddr string, adminHosts []string) *Server {
@@ -52,7 +53,13 @@ func NewServer(db *gorm.DB, cm *cert.Manager, g *geoip.Lookup, cs *crowdsec.Clie
 	for _, h := range adminHosts {
 		ah[strings.ToLower(h)] = true
 	}
-	return &Server{DB: db, Certs: cm, GeoIP: g, CrowdSec: cs, Log: lg, IPList: il, RateLimiter: rl, Cache: ca, HTTPAddr: httpAddr, HTTPSAddr: httpsAddr, AdminHosts: ah}
+	base, _ := http.DefaultTransport.(*http.Transport)
+	if base == nil {
+		base = &http.Transport{Proxy: http.ProxyFromEnvironment}
+	}
+	insecure := base.Clone()
+	insecure.TLSClientConfig = &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12}
+	return &Server{DB: db, Certs: cm, GeoIP: g, CrowdSec: cs, Log: lg, IPList: il, RateLimiter: rl, Cache: ca, InsecureTransport: insecure, HTTPAddr: httpAddr, HTTPSAddr: httpsAddr, AdminHosts: ah}
 }
 
 // statusRecorder captures status code and bytes for access logging while
@@ -592,7 +599,19 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	insecureUpstream := false
+	if loc.UpstreamInsecureSkipVerify != nil {
+		insecureUpstream = *loc.UpstreamInsecureSkipVerify
+	} else if site.UpstreamInsecureSkipVerify != nil {
+		insecureUpstream = *site.UpstreamInsecureSkipVerify
+	} else if tmpl != nil && tmpl.UpstreamInsecureSkipVerify != nil {
+		insecureUpstream = *tmpl.UpstreamInsecureSkipVerify
+	}
+
 	rp := httputil.NewSingleHostReverseProxy(upstream)
+	if insecureUpstream && s.InsecureTransport != nil {
+		rp.Transport = s.InsecureTransport
+	}
 	origHost := r.Host
 	origDirector := rp.Director
 	rp.Director = func(req *http.Request) {
