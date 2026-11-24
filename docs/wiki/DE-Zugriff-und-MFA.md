@@ -38,15 +38,25 @@ Pro Site unter **Site → Zugriff**:
 - **Deny** blockt die IP für diese Site.
 - **Allow** überspringt den Site-Login (Basic Auth), aber **nicht** GeoIP oder Rate Limit.
 
-Die globale Whitelist hebt den Site-Login **nicht** auf.
+Für Locations gibt es `ip_rules_mode`:
+
+- `inherit` → Site-Regeln gelten
+- `own` → nur die eigenen Regeln der Location gelten (Site-Regeln werden **ersetzt**, nicht ergänzt)
+
+Location-Regeln werden über **Site → Zugriff → Zugriffsebene** verwaltet. Ein Allow der Location überspringt den Login dieser Location; ein Deny blockt sie. Die globale Whitelist hebt den Site-Login **nicht** auf.
 
 ## Basic Auth pro Site/Location
 
 - Benutzer werden pro Site gepflegt (`SiteAuthUser`, bcrypt).
 - `auth_enabled` kann pro Site und pro Location gesetzt werden.
-- Nach **3 Fehlversuchen** wird die Kombination Site+IP für **5 Minuten** gesperrt → `429` mit `Retry-After: 300`.
+- Für Locations gibt es `auth_users_mode`:
+  - `inherit` → Site-Benutzer
+  - `own` → eigene Benutzerliste der Location
+- Nach **3 Fehlversuchen** wird die Kombination Site+Location+IP für **5 Minuten** gesperrt → `429` mit `Retry-After: 300`.
 - Ein erfolgreicher Login setzt den Zähler zurück.
 - Requests mit `Authorization`-Header umgehen den Response-Cache.
+
+**Verwaltung:** **Site → Zugriff → Zugriffsebene** (Site oder Location). Dort werden Benutzer und IP-Regeln der gewählten Ebene angezeigt und bearbeitet. Die Modi `inherit`/`own` werden im Tab **Locations** gesetzt.
 
 ## Automatischer 404-Ban
 

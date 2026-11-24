@@ -142,6 +142,8 @@ type SiteLocation struct {
 	CacheTTL                   *int        `json:"cache_ttl"`
 	CacheMaxObjectKB           *int        `json:"cache_max_object_kb"`
 	AuthEnabled                *bool       `json:"auth_enabled"`
+	AuthUsersMode              string      `gorm:"not null;default:inherit" json:"auth_users_mode"`
+	IPRulesMode                string      `gorm:"not null;default:inherit" json:"ip_rules_mode"`
 
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
@@ -183,21 +185,23 @@ type GeoIPRule struct {
 }
 
 type SiteAuthUser struct {
-	ID           uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	SiteID       uuid.UUID `gorm:"type:uuid;index;not null" json:"site_id"`
-	Username     string    `gorm:"not null" json:"username"`
-	PasswordHash string    `gorm:"not null" json:"-"`
-	Active       bool      `gorm:"default:true" json:"active"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID           uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	SiteID       uuid.UUID  `gorm:"type:uuid;index;not null" json:"site_id"`
+	LocationID   *uuid.UUID `gorm:"type:uuid;index" json:"location_id"`
+	Username     string     `gorm:"not null" json:"username"`
+	PasswordHash string     `gorm:"not null" json:"-"`
+	Active       bool       `gorm:"default:true" json:"active"`
+	CreatedAt    time.Time  `json:"created_at"`
 }
 
 type SiteIPRule struct {
-	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	SiteID    uuid.UUID `gorm:"type:uuid;index;not null" json:"site_id"`
-	Kind      string    `gorm:"not null" json:"kind"`
-	Value     string    `gorm:"not null" json:"value"`
-	Note      string    `json:"note"`
-	CreatedAt time.Time `json:"created_at"`
+	ID         uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	SiteID     uuid.UUID  `gorm:"type:uuid;index;not null" json:"site_id"`
+	LocationID *uuid.UUID `gorm:"type:uuid;index" json:"location_id"`
+	Kind       string     `gorm:"not null" json:"kind"`
+	Value      string     `gorm:"not null" json:"value"`
+	Note       string     `json:"note"`
+	CreatedAt  time.Time  `json:"created_at"`
 }
 
 type AuditLog struct {

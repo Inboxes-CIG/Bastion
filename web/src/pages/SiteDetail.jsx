@@ -19,7 +19,8 @@ function emptyLocation() {
   return {
     id: null, path_prefix: '/', enabled: true,
     upstream_url: null, upstream_host: null, upstream_insecure_skip_verify: null,
-    auth_enabled: null, cache_enabled: null, cache_ttl: null, cache_max_object_kb: null,
+    auth_enabled: null, auth_users_mode: 'inherit', ip_rules_mode: 'inherit',
+    cache_enabled: null, cache_ttl: null, cache_max_object_kb: null,
     rate_limit_rps: null, rate_limit_burst: null,
     geoip_enabled: null, geoip_mode: null, geoip_countries: null,
     http3_enabled: null,
@@ -118,6 +119,7 @@ export default function SiteDetail() {
   const [cacheMsg, setCacheMsg] = useState('')
   const [siteUsers, setSiteUsers] = useState([])
   const [siteRules, setSiteRules] = useState([])
+  const [accessScope, setAccessScope] = useState('site')
   const [locations, setLocations] = useState([])
   const [locForm, setLocForm] = useState(null)
   const [locErr, setLocErr] = useState('')
@@ -148,10 +150,12 @@ export default function SiteDetail() {
   }
 
   const loadCerts = () => api('/certificates').then(d=>setCerts(d.data||[])).catch(()=>{})
+  const accessBase = () => accessScope === 'site' ? '/sites/'+id : '/sites/'+id+'/locations/'+accessScope
   const loadAccess = () => {
     if (isNew) return
-    api('/sites/'+id+'/users').then(d=>setSiteUsers(d.data||[])).catch(()=>{})
-    api('/sites/'+id+'/ip-rules').then(d=>setSiteRules(d.data||[])).catch(()=>{})
+    const base = accessBase()
+    api(base+'/users').then(d=>setSiteUsers(d.data||[])).catch(()=>{})
+    api(base+'/ip-rules').then(d=>setSiteRules(d.data||[])).catch(()=>{})
   }
   const loadLocations = () => {
     if (isNew) return
@@ -164,9 +168,18 @@ export default function SiteDetail() {
     api('/geoip/countries').then(d=>setCountries(d.data||[])).catch(()=>{})
     loadCerts()
     loadSite()
-    loadAccess()
     loadLocations()
   }, [id])
+
+  useEffect(() => {
+    loadAccess()
+  }, [id, accessScope])
+
+  useEffect(() => {
+    if (accessScope !== 'site' && !locations.find(l => l.id === accessScope)) {
+      setAccessScope('site')
+    }
+  }, [locations])
 
   useEffect(() => {
     if (!leEmail && form.cert_id) {
@@ -191,29 +204,31 @@ export default function SiteDetail() {
   const saveUser = async (e) => {
     e.preventDefault(); setUserErr('')
     try {
+      const base = accessBase()
       if (userEditing) {
         const payload = { username: userForm.username, active: userForm.active }
         if (userForm.password) payload.password = userForm.password
-        await api('/sites/'+id+'/users/'+userEditing, { method:'PUT', body: JSON.stringify(payload) })
+        await api(base+'/users/'+userEditing, { method:'PUT', body: JSON.stringify(payload) })
       } else {
-        await api('/sites/'+id+'/users', { method:'POST', body: JSON.stringify(userForm) })
+        await api(base+'/users', { method:'POST', body: JSON.stringify(userForm) })
       }
       setUserForm({ username:'', password:'', active:true }); setUserEditing(null); loadAccess()
     } catch(e) { setUserErr(e.message) }
   }
   const editUser = (u) => { setUserEditing(u.id); setUserForm({ username:u.username, password:'', active:u.active }); setUserErr('') }
-  const delUser = async (uid) => { if (!confirm('Benutzer löschen?')) return; await api('/sites/'+id+'/users/'+uid, { method:'DELETE' }); loadAccess() }
+  const delUser = async (uid) => { if (!confirm('Benutzer löschen?')) return; await api(accessBase()+'/users/'+uid, { method:'DELETE' }); loadAccess() }
 
   const saveRule = async (e) => {
     e.preventDefault(); setRuleErr('')
     try {
-      if (ruleEditing) await api('/sites/'+id+'/ip-rules/'+ruleEditing, { method:'PUT', body: JSON.stringify(ruleForm) })
-      else await api('/sites/'+id+'/ip-rules', { method:'POST', body: JSON.stringify(ruleForm) })
+      const base = accessBase()
+      if (ruleEditing) await api(base+'/ip-rules/'+ruleEditing, { method:'PUT', body: JSON.stringify(ruleForm) })
+      else await api(base+'/ip-rules', { method:'POST', body: JSON.stringify(ruleForm) })
       setRuleForm({ kind:'allow', value:'', note:'' }); setRuleEditing(null); loadAccess()
     } catch(e) { setRuleErr(e.message) }
   }
   const editRule = (r) => { setRuleEditing(r.id); setRuleForm({ kind:r.kind, value:r.value, note:r.note||'' }); setRuleErr('') }
-  const delRule = async (rid) => { if (!confirm('Regel löschen?')) return; await api('/sites/'+id+'/ip-rules/'+rid, { method:'DELETE' }); loadAccess() }
+  const delRule = async (rid) => { if (!confirm('Regel löschen?')) return; await api(accessBase()+'/ip-rules/'+rid, { method:'DELETE' }); loadAccess() }
 
   const saveLocation = async () => {
     if (!locForm) return
@@ -226,6 +241,8 @@ export default function SiteDetail() {
         upstream_host: locForm.upstream_host || null,
         upstream_insecure_skip_verify: locForm.upstream_insecure_skip_verify,
         auth_enabled: locForm.auth_enabled,
+        auth_users_mode: locForm.auth_users_mode || 'inherit',
+        ip_rules_mode: locForm.ip_rules_mode || 'inherit',
         cache_enabled: locForm.cache_enabled,
         cache_ttl: locForm.cache_ttl,
         cache_max_object_kb: locForm.cache_max_object_kb,
@@ -370,6 +387,8 @@ export default function SiteDetail() {
                           {l.cache_enabled !== null && <Badge variant={l.cache_enabled?'blue':'slate'}>Cache {l.cache_enabled?'an':'aus'}</Badge>}
                           {l.geoip_enabled !== null && <Badge variant={l.geoip_enabled?'amber':'slate'}>GeoIP {l.geoip_enabled?'an':'aus'}</Badge>}
                           {l.rate_limit_rps !== null && <Badge variant="indigo">Limit {l.rate_limit_rps} rps</Badge>}
+                          {l.auth_users_mode === 'own' && <Badge variant="blue">eigene Benutzer</Badge>}
+                          {l.ip_rules_mode === 'own' && <Badge variant="blue">eigene IP-Regeln</Badge>}
                         </div>
                         <div className="text-xs text-slate-500 mt-1 truncate">
                           Upstream: {l.upstream_url || 'von der Site'} {l.upstream_host ? '· Host: ' + l.upstream_host : ''}
@@ -504,7 +523,33 @@ export default function SiteDetail() {
 
           {tab === 'access' && (
             <div className="space-y-6">
-              <Tri label="Authentifizierung (Basic Auth)" value={form.auth_enabled} onChange={v=>setForm({...form,auth_enabled:v})} templateValue={tmpl?.auth_enabled} />
+              {!isNew && locations.length > 0 && (
+                <Field label="Zugriffsebene" hint="Benutzer und IP-Regeln getrennt für die Site oder eine Location verwalten.">
+                  <Select value={accessScope} onChange={e=>{ setAccessScope(e.target.value); setUserEditing(null); setUserForm({ username:'', password:'', active:true }); setRuleEditing(null); setRuleForm({ kind:'allow', value:'', note:'' }) }}>
+                    <option value="site">Site (Standard)</option>
+                    {locations.map(l => <option key={l.id} value={l.id}>Location {l.path_prefix}{l.enabled ? '' : ' (deaktiviert)'}</option>)}
+                  </Select>
+                </Field>
+              )}
+              {accessScope !== 'site' && (() => {
+                const l = locations.find(x=>x.id===accessScope)
+                if (!l) return null
+                return (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Alert variant={l.auth_users_mode==='own' ? 'info' : 'warn'}>
+                      Benutzer: {l.auth_users_mode==='own' ? 'eigene Liste dieser Location' : 'von der Site geerbt'}
+                    </Alert>
+                    <Alert variant={l.ip_rules_mode==='own' ? 'info' : 'warn'}>
+                      IP-Regeln: {l.ip_rules_mode==='own' ? 'eigene Liste dieser Location' : 'von der Site geerbt'}
+                    </Alert>
+                  </div>
+                )
+              })()}
+              {accessScope === 'site' ? (
+                <Tri label="Authentifizierung (Basic Auth)" value={form.auth_enabled} onChange={v=>setForm({...form,auth_enabled:v})} templateValue={tmpl?.auth_enabled} />
+              ) : (
+                <Alert variant="info">Basic Auth sowie „eigene/geerbte Benutzer &amp; IP-Regeln" stellst du im Tab <b>Locations</b> ein. Hier verwaltest du die Einträge der gewählten Location.</Alert>
+              )}
               {isNew ? <Alert variant="info">Site zuerst speichern, dann Benutzer und IP-Regeln pflegen.</Alert> : (
                 <>
                   <div className="rounded-lg border border-slate-200 p-4">
@@ -564,7 +609,7 @@ export default function SiteDetail() {
                     )}
                   </div>
 
-                  <Alert variant="info">Ist Auth aktiv und die IP in der Site-Allow-Liste, ist kein Login nötig. Die globale IP-Whitelist hebt den Site-Login NICHT auf. Nach 3 Fehlversuchen wird die IP 5 Minuten gesperrt (429).</Alert>
+                  <Alert variant="info">Ist Auth aktiv und die IP in der Allow-Liste der gewählten Ebene (Site oder Location), ist kein Login nötig. Die globale IP-Whitelist hebt den Login NICHT auf. Nach 3 Fehlversuchen wird die IP 5 Minuten gesperrt (429).</Alert>
                 </>
               )}
             </div>
@@ -612,6 +657,20 @@ export default function SiteDetail() {
             <div className="rounded-lg border border-slate-200 p-4 space-y-1">
               <div className="text-sm font-semibold text-slate-800 mb-1">Zugriff & Limit</div>
               <Tri label="Basic Auth" value={locForm.auth_enabled} onChange={v=>setLocForm({...locForm,auth_enabled:v})} templateValue={inherited('auth_enabled')} inheritLabel="von der Site" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <Field label="Auth-Benutzer" hint="Eigene Benutzer oder die der Site verwenden">
+                  <Select value={locForm.auth_users_mode||'inherit'} onChange={e=>setLocForm({...locForm,auth_users_mode:e.target.value})}>
+                    <option value="inherit">Von der Site erben</option>
+                    <option value="own">Eigene Benutzer</option>
+                  </Select>
+                </Field>
+                <Field label="IP-Regeln" hint="Eigene Allow/Deny-Regeln oder die der Site">
+                  <Select value={locForm.ip_rules_mode||'inherit'} onChange={e=>setLocForm({...locForm,ip_rules_mode:e.target.value})}>
+                    <option value="inherit">Von der Site erben</option>
+                    <option value="own">Eigene Regeln</option>
+                  </Select>
+                </Field>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                 <InheritNumber label="Rate Limit RPS" value={locForm.rate_limit_rps} onChange={v=>setLocForm({...locForm,rate_limit_rps:v})} templateValue={inherited('rate_limit_rps')} />
                 <InheritNumber label="Rate Limit Burst" value={locForm.rate_limit_burst} onChange={v=>setLocForm({...locForm,rate_limit_burst:v})} templateValue={inherited('rate_limit_burst')} />

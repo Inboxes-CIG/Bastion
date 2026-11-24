@@ -11,6 +11,8 @@ import (
 	"gorm.io/gorm"
 )
 
+// siteData holds one access scope: either the site itself (LocationID nil) or
+// one of its path locations.
 type siteData struct {
 	loaded     time.Time
 	users      map[string]string
@@ -18,6 +20,17 @@ type siteData struct {
 	allowCIDR  []*net.IPNet
 	denyExact  map[string]bool
 	denyCIDR   []*net.IPNet
+	locations  map[string]*siteData
+}
+
+func newData() *siteData {
+	return &siteData{
+		loaded:     time.Now(),
+		users:      map[string]string{},
+		allowExact: map[string]bool{},
+		denyExact:  map[string]bool{},
+		locations:  map[string]*siteData{},
+	}
 }
 
 type Cache struct {
@@ -50,43 +63,74 @@ func (c *Cache) Get(siteID string) *siteData {
 	return d
 }
 
-func (c *Cache) load(siteID string) *siteData {
-	d := &siteData{
-		loaded:     time.Now(),
-		users:      map[string]string{},
-		allowExact: map[string]bool{},
-		denyExact:  map[string]bool{},
+// GetLocation returns the access data for one location. Unknown locations
+// yield an empty scope (no users, no rules), which is the correct behavior
+// when a location uses "own" mode but has no entries yet.
+func (c *Cache) GetLocation(siteID, locationID string) *siteData {
+	d := c.Get(siteID)
+	if d != nil {
+		if l := d.locations[locationID]; l != nil {
+			return l
+		}
 	}
+	return newData()
+}
+
+func (c *Cache) load(siteID string) *siteData {
+	d := newData()
+
 	var users []db.SiteAuthUser
 	c.db.Where("site_id = ? AND active = true", siteID).Find(&users)
 	for _, u := range users {
-		d.users[u.Username] = u.PasswordHash
+		target := d
+		if u.LocationID != nil {
+			target = d.location(u.LocationID.String())
+		}
+		target.users[u.Username] = u.PasswordHash
 	}
+
 	var rules []db.SiteIPRule
 	c.db.Where("site_id = ?", siteID).Find(&rules)
 	for _, r := range rules {
-		v := strings.TrimSpace(r.Value)
-		if strings.Contains(v, "/") {
-			if _, cidr, err := net.ParseCIDR(v); err == nil {
-				if r.Kind == "allow" {
-					d.allowCIDR = append(d.allowCIDR, cidr)
-				} else {
-					d.denyCIDR = append(d.denyCIDR, cidr)
-				}
-			}
-			continue
+		target := d
+		if r.LocationID != nil {
+			target = d.location(r.LocationID.String())
 		}
-		ip := net.ParseIP(v)
-		if ip == nil {
-			continue
-		}
-		if r.Kind == "allow" {
-			d.allowExact[ip.String()] = true
-		} else {
-			d.denyExact[ip.String()] = true
-		}
+		addRule(target, r)
 	}
 	return d
+}
+
+func (d *siteData) location(id string) *siteData {
+	l := d.locations[id]
+	if l == nil {
+		l = newData()
+		d.locations[id] = l
+	}
+	return l
+}
+
+func addRule(d *siteData, r db.SiteIPRule) {
+	v := strings.TrimSpace(r.Value)
+	if strings.Contains(v, "/") {
+		if _, cidr, err := net.ParseCIDR(v); err == nil {
+			if r.Kind == "allow" {
+				d.allowCIDR = append(d.allowCIDR, cidr)
+			} else {
+				d.denyCIDR = append(d.denyCIDR, cidr)
+			}
+		}
+		return
+	}
+	ip := net.ParseIP(v)
+	if ip == nil {
+		return
+	}
+	if r.Kind == "allow" {
+		d.allowExact[ip.String()] = true
+	} else {
+		d.denyExact[ip.String()] = true
+	}
 }
 
 func match(ip net.IP, exact map[string]bool, cidrs []*net.IPNet) bool {
@@ -124,7 +168,8 @@ func (d *siteData) Validate(user, pass string) bool {
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(pass)) == nil
 }
 
-// Lockout tracks failed auth attempts per site+IP and locks for 5 minutes after 3 failures.
+// Lockout tracks failed auth attempts per site+location+IP and locks for 5
+// minutes after 3 failures.
 type Lockout struct {
 	mu sync.Mutex
 	m  map[string]*lockEntry

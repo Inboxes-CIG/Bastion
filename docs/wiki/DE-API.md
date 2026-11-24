@@ -107,6 +107,8 @@ Payload:
   "upstream_host": null,
   "upstream_insecure_skip_verify": false,
   "auth_enabled": null,
+  "auth_users_mode": "inherit",
+  "ip_rules_mode": "inherit",
   "cache_enabled": true,
   "cache_ttl": 300,
   "cache_max_object_kb": 512,
@@ -159,6 +161,8 @@ Payload:
 |---|---|---|
 | GET/POST/PUT/DELETE | `/sites/:id/users` | Schreiben: superadmin, tenant_admin |
 | GET/POST/PUT/DELETE | `/sites/:id/ip-rules` | Schreiben: superadmin, tenant_admin |
+| GET/POST/PUT/DELETE | `/sites/:id/locations/:lid/users` | Schreiben: superadmin, tenant_admin |
+| GET/POST/PUT/DELETE | `/sites/:id/locations/:lid/ip-rules` | Schreiben: superadmin, tenant_admin |
 
 ### GeoIP
 

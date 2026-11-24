@@ -37,7 +37,9 @@ A location applies to a path prefix and can override almost everything a site co
 | `enabled` | Location active/inactive |
 | `upstream_url` / `upstream_host` | Dedicated backend for this path |
 | `upstream_insecure_skip_verify` | Disable TLS verification for the HTTPS upstream |
-| `auth_enabled` | Basic Auth for this path (uses the site users) |
+| `auth_enabled` | Basic Auth for this path |
+| `auth_users_mode` | `inherit` = site users, `own` = location-specific users |
+| `ip_rules_mode` | `inherit` = site rules, `own` = location-specific allow/deny rules |
 | `cache_enabled` / `cache_ttl` / `cache_max_object_kb` | Cache override |
 | `rate_limit_rps` / `rate_limit_burst` | Rate-limit override |
 | `geoip_enabled` / `geoip_mode` / `geoip_countries` | GeoIP override |
@@ -55,7 +57,11 @@ A location applies to a path prefix and can override almost everything a site co
 
 **Important:**
 
-- Site users (Basic Auth) are shared by the whole site. A location can only toggle auth, not define its own users.
+- **Own or inherited users:** `auth_users_mode=inherit` uses the site users, `own` uses a location-specific user list.
+- **Own or inherited IP rules:** `ip_rules_mode=inherit` uses the site rules, `own` uses a location-specific allow/deny list. “Own” **replaces** the site rules; it is not additive.
+- Own users/rules are managed under **Site → Access** with the **Access scope** selector (site or location).
+- `auth_enabled` still controls whether a login is required for the location.
+- If `own` is selected and the list is empty, there are no valid users/rules – auth denies everyone not allow-listed by the location.
 - Creating/updating/deleting a location clears the site's cache.
 - Locations are managed in the GUI under **Site → Locations**.
 

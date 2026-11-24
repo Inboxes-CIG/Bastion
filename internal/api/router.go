@@ -106,6 +106,15 @@ func NewRouter(d Deps) *gin.Engine {
 			protected.PUT("/sites/:id/locations/:lid", auth.RequireRole("superadmin", "tenant_admin"), locH.Update)
 			protected.DELETE("/sites/:id/locations/:lid", auth.RequireRole("superadmin", "tenant_admin"), locH.Delete)
 
+			protected.GET("/sites/:id/locations/:lid/users", accessH.ListUsers)
+			protected.POST("/sites/:id/locations/:lid/users", auth.RequireRole("superadmin", "tenant_admin"), accessH.CreateUser)
+			protected.PUT("/sites/:id/locations/:lid/users/:uid", auth.RequireRole("superadmin", "tenant_admin"), accessH.UpdateUser)
+			protected.DELETE("/sites/:id/locations/:lid/users/:uid", auth.RequireRole("superadmin", "tenant_admin"), accessH.DeleteUser)
+			protected.GET("/sites/:id/locations/:lid/ip-rules", accessH.ListIPRules)
+			protected.POST("/sites/:id/locations/:lid/ip-rules", auth.RequireRole("superadmin", "tenant_admin"), accessH.CreateIPRule)
+			protected.PUT("/sites/:id/locations/:lid/ip-rules/:rid", auth.RequireRole("superadmin", "tenant_admin"), accessH.UpdateIPRule)
+			protected.DELETE("/sites/:id/locations/:lid/ip-rules/:rid", auth.RequireRole("superadmin", "tenant_admin"), accessH.DeleteIPRule)
+
 			protected.GET("/sites/:id/users", accessH.ListUsers)
 			protected.POST("/sites/:id/users", auth.RequireRole("superadmin", "tenant_admin"), accessH.CreateUser)
 			protected.PUT("/sites/:id/users/:uid", auth.RequireRole("superadmin", "tenant_admin"), accessH.UpdateUser)

@@ -348,12 +348,27 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 		loc = l
 	}
 
-	// Per-site access control (IP allow/deny + Basic Auth)
+	// Per-site/location access control (IP allow/deny + Basic Auth)
 	if s.Access != nil {
-		data := s.Access.Get(site.ID.String())
-		if data.Denied(entry.ClientIP) {
+		siteData := s.Access.Get(site.ID.String())
+		authData := siteData
+		ipData := siteData
+		hasLocation := loc.PathPrefix != ""
+		if hasLocation {
+			if loc.AuthUsersMode == "own" {
+				authData = s.Access.GetLocation(site.ID.String(), loc.ID.String())
+			}
+			if loc.IPRulesMode == "own" {
+				ipData = s.Access.GetLocation(site.ID.String(), loc.ID.String())
+			}
+		}
+		if ipData.Denied(entry.ClientIP) {
 			entry.Blocked = true
-			entry.BlockReason = "site_blacklist"
+			if hasLocation && loc.IPRulesMode == "own" {
+				entry.BlockReason = "location_blacklist"
+			} else {
+				entry.BlockReason = "site_blacklist"
+			}
 			silentBlock(sw)
 			return
 		}
@@ -366,11 +381,14 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 			authEnabled = *tmpl.AuthEnabled
 		}
 		if authEnabled {
-			// Only the per-site allow list bypasses the login; the global
+			// Only the effective allow list bypasses the login; the global
 			// whitelist does NOT.
-			ipAllowed := data.Allowed(entry.ClientIP)
+			ipAllowed := ipData.Allowed(entry.ClientIP)
 			if !ipAllowed {
 				key := site.ID.String() + "|" + entry.ClientIP
+				if hasLocation {
+					key = site.ID.String() + "|" + loc.ID.String() + "|" + entry.ClientIP
+				}
 				if s.Lockout != nil && s.Lockout.Locked(key) {
 					entry.Blocked = true
 					entry.BlockReason = "site_auth_locked"
@@ -379,7 +397,7 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 				user, pass, ok := r.BasicAuth()
-				if !ok || !data.Validate(user, pass) {
+				if !ok || !authData.Validate(user, pass) {
 					if s.Lockout != nil {
 						s.Lockout.Fail(key)
 					}

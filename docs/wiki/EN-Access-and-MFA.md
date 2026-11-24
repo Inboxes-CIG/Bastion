@@ -38,15 +38,25 @@ Per site under **Site → Access**:
 - **Deny** blocks the IP for this site.
 - **Allow** skips the site login (Basic Auth), but **not** GeoIP or rate limiting.
 
-The global whitelist does **not** bypass the site login.
+Locations have `ip_rules_mode`:
+
+- `inherit` → site rules apply
+- `own` → only the location's own rules apply (site rules are **replaced**, not additive)
+
+Location rules are managed via **Site → Access → Access scope**. A location allow skips the location login; a location deny blocks it. The global whitelist does **not** bypass the site login.
 
 ## Basic Auth per site/location
 
 - Users are managed per site (`SiteAuthUser`, bcrypt).
 - `auth_enabled` can be set per site and per location.
-- After **3 failed attempts**, the site+IP combination is locked for **5 minutes** → `429` with `Retry-After: 300`.
+- Locations have `auth_users_mode`:
+  - `inherit` → site users
+  - `own` → location-specific user list
+- After **3 failed attempts**, the site+location+IP combination is locked for **5 minutes** → `429` with `Retry-After: 300`.
 - A successful login resets the counter.
 - Requests with an `Authorization` header bypass the response cache.
+
+**Management:** **Site → Access → Access scope** (site or location). It shows and edits the users and IP rules of the selected scope. The `inherit`/`own` modes are set in the **Locations** tab.
 
 ## Automatic 404 ban
 

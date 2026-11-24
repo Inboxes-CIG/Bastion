@@ -36,6 +36,18 @@ type locationRequest struct {
 	CacheTTL                   *int      `json:"cache_ttl"`
 	CacheMaxObjectKB           *int      `json:"cache_max_object_kb"`
 	AuthEnabled                *bool     `json:"auth_enabled"`
+	AuthUsersMode              string    `json:"auth_users_mode"`
+	IPRulesMode                string    `json:"ip_rules_mode"`
+}
+
+func normalizeAccessMode(v, def string) (string, bool) {
+	switch v {
+	case "":
+		return def, true
+	case "inherit", "own":
+		return v, true
+	}
+	return "", false
 }
 
 func normalizePathPrefix(p string) (string, error) {
@@ -113,6 +125,16 @@ func (h *LocationHandler) Create(c *gin.Context) {
 		BadRequest(c, "a location with this path already exists")
 		return
 	}
+	authUsersMode, ok := normalizeAccessMode(req.AuthUsersMode, "inherit")
+	if !ok {
+		BadRequest(c, "auth_users_mode must be inherit or own")
+		return
+	}
+	ipRulesMode, ok := normalizeAccessMode(req.IPRulesMode, "inherit")
+	if !ok {
+		BadRequest(c, "ip_rules_mode must be inherit or own")
+		return
+	}
 	loc := db.SiteLocation{
 		SiteID:                     siteID,
 		PathPrefix:                 prefix,
@@ -130,6 +152,8 @@ func (h *LocationHandler) Create(c *gin.Context) {
 		CacheTTL:                   req.CacheTTL,
 		CacheMaxObjectKB:           req.CacheMaxObjectKB,
 		AuthEnabled:                req.AuthEnabled,
+		AuthUsersMode:              authUsersMode,
+		IPRulesMode:                ipRulesMode,
 	}
 	if req.Enabled != nil {
 		loc.Enabled = *req.Enabled
@@ -178,6 +202,22 @@ func (h *LocationHandler) Update(c *gin.Context) {
 	}
 	if req.Enabled != nil {
 		loc.Enabled = *req.Enabled
+	}
+	if req.AuthUsersMode != "" {
+		mode, ok := normalizeAccessMode(req.AuthUsersMode, loc.AuthUsersMode)
+		if !ok {
+			BadRequest(c, "auth_users_mode must be inherit or own")
+			return
+		}
+		loc.AuthUsersMode = mode
+	}
+	if req.IPRulesMode != "" {
+		mode, ok := normalizeAccessMode(req.IPRulesMode, loc.IPRulesMode)
+		if !ok {
+			BadRequest(c, "ip_rules_mode must be inherit or own")
+			return
+		}
+		loc.IPRulesMode = mode
 	}
 	loc.UpstreamURL = req.UpstreamURL
 	loc.UpstreamHost = req.UpstreamHost

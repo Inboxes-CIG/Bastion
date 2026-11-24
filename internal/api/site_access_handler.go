@@ -18,13 +18,36 @@ type SiteAccessHandler struct {
 	Access *siteaccess.Cache
 }
 
-func (h *SiteAccessHandler) siteID(c *gin.Context) (uuid.UUID, bool) {
-	id, err := uuid.Parse(c.Param("id"))
+// scope resolves :id and optionally :lid. A nil location means the site scope.
+func (h *SiteAccessHandler) scope(c *gin.Context) (uuid.UUID, *uuid.UUID, bool) {
+	sid, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		BadRequest(c, "invalid site id")
-		return uuid.Nil, false
+		return uuid.Nil, nil, false
 	}
-	return id, true
+	raw := c.Param("lid")
+	if raw == "" {
+		return sid, nil, true
+	}
+	lid, err := uuid.Parse(raw)
+	if err != nil {
+		BadRequest(c, "invalid location id")
+		return uuid.Nil, nil, false
+	}
+	var count int64
+	h.DB.Model(&db.SiteLocation{}).Where("id = ? AND site_id = ?", lid, sid).Count(&count)
+	if count == 0 {
+		NotFound(c, "location not found")
+		return uuid.Nil, nil, false
+	}
+	return sid, &lid, true
+}
+
+func scopeWhere(q *gorm.DB, sid uuid.UUID, lid *uuid.UUID) *gorm.DB {
+	if lid != nil {
+		return q.Where("site_id = ? AND location_id = ?", sid, *lid)
+	}
+	return q.Where("site_id = ? AND location_id IS NULL", sid)
 }
 
 func (h *SiteAccessHandler) invalidate(sid uuid.UUID) {
@@ -34,12 +57,12 @@ func (h *SiteAccessHandler) invalidate(sid uuid.UUID) {
 }
 
 func (h *SiteAccessHandler) ListUsers(c *gin.Context) {
-	sid, ok := h.siteID(c)
+	sid, lid, ok := h.scope(c)
 	if !ok {
 		return
 	}
 	var users []db.SiteAuthUser
-	if err := h.DB.Where("site_id = ?", sid).Order("created_at").Find(&users).Error; err != nil {
+	if err := scopeWhere(h.DB, sid, lid).Order("created_at").Find(&users).Error; err != nil {
 		InternalError(c, err.Error())
 		return
 	}
@@ -53,7 +76,7 @@ type siteUserRequest struct {
 }
 
 func (h *SiteAccessHandler) CreateUser(c *gin.Context) {
-	sid, ok := h.siteID(c)
+	sid, lid, ok := h.scope(c)
 	if !ok {
 		return
 	}
@@ -66,12 +89,18 @@ func (h *SiteAccessHandler) CreateUser(c *gin.Context) {
 		BadRequest(c, "password required")
 		return
 	}
+	var count int64
+	scopeWhere(h.DB.Model(&db.SiteAuthUser{}), sid, lid).Where("username = ?", req.Username).Count(&count)
+	if count > 0 {
+		BadRequest(c, "username already exists in this scope")
+		return
+	}
 	hash, err := auth.HashPassword(req.Password)
 	if err != nil {
 		InternalError(c, err.Error())
 		return
 	}
-	u := db.SiteAuthUser{SiteID: sid, Username: req.Username, PasswordHash: hash, Active: true}
+	u := db.SiteAuthUser{SiteID: sid, LocationID: lid, Username: req.Username, PasswordHash: hash, Active: true}
 	if req.Active != nil {
 		u.Active = *req.Active
 	}
@@ -84,7 +113,7 @@ func (h *SiteAccessHandler) CreateUser(c *gin.Context) {
 }
 
 func (h *SiteAccessHandler) UpdateUser(c *gin.Context) {
-	sid, ok := h.siteID(c)
+	sid, lid, ok := h.scope(c)
 	if !ok {
 		return
 	}
@@ -94,7 +123,7 @@ func (h *SiteAccessHandler) UpdateUser(c *gin.Context) {
 		return
 	}
 	var u db.SiteAuthUser
-	if err := h.DB.First(&u, "id = ? AND site_id = ?", uid, sid).Error; err != nil {
+	if err := scopeWhere(h.DB, sid, lid).First(&u, "id = ?", uid).Error; err != nil {
 		NotFound(c, "user not found")
 		return
 	}
@@ -103,7 +132,13 @@ func (h *SiteAccessHandler) UpdateUser(c *gin.Context) {
 		BadRequest(c, err.Error())
 		return
 	}
-	if req.Username != "" {
+	if req.Username != "" && req.Username != u.Username {
+		var count int64
+		scopeWhere(h.DB.Model(&db.SiteAuthUser{}), sid, lid).Where("username = ? AND id <> ?", req.Username, uid).Count(&count)
+		if count > 0 {
+			BadRequest(c, "username already exists in this scope")
+			return
+		}
 		u.Username = req.Username
 	}
 	if req.Password != "" {
@@ -123,7 +158,7 @@ func (h *SiteAccessHandler) UpdateUser(c *gin.Context) {
 }
 
 func (h *SiteAccessHandler) DeleteUser(c *gin.Context) {
-	sid, ok := h.siteID(c)
+	sid, lid, ok := h.scope(c)
 	if !ok {
 		return
 	}
@@ -132,7 +167,7 @@ func (h *SiteAccessHandler) DeleteUser(c *gin.Context) {
 		BadRequest(c, "invalid user id")
 		return
 	}
-	if err := h.DB.Delete(&db.SiteAuthUser{}, "id = ? AND site_id = ?", uid, sid).Error; err != nil {
+	if err := scopeWhere(h.DB, sid, lid).Delete(&db.SiteAuthUser{}, "id = ?", uid).Error; err != nil {
 		InternalError(c, err.Error())
 		return
 	}
@@ -141,12 +176,12 @@ func (h *SiteAccessHandler) DeleteUser(c *gin.Context) {
 }
 
 func (h *SiteAccessHandler) ListIPRules(c *gin.Context) {
-	sid, ok := h.siteID(c)
+	sid, lid, ok := h.scope(c)
 	if !ok {
 		return
 	}
 	var rules []db.SiteIPRule
-	if err := h.DB.Where("site_id = ?", sid).Order("created_at").Find(&rules).Error; err != nil {
+	if err := scopeWhere(h.DB, sid, lid).Order("created_at").Find(&rules).Error; err != nil {
 		InternalError(c, err.Error())
 		return
 	}
@@ -160,7 +195,7 @@ type siteIPRuleRequest struct {
 }
 
 func (h *SiteAccessHandler) CreateIPRule(c *gin.Context) {
-	sid, ok := h.siteID(c)
+	sid, lid, ok := h.scope(c)
 	if !ok {
 		return
 	}
@@ -177,7 +212,7 @@ func (h *SiteAccessHandler) CreateIPRule(c *gin.Context) {
 		BadRequest(c, err.Error())
 		return
 	}
-	r := db.SiteIPRule{SiteID: sid, Kind: req.Kind, Value: strings.TrimSpace(req.Value), Note: req.Note}
+	r := db.SiteIPRule{SiteID: sid, LocationID: lid, Kind: req.Kind, Value: strings.TrimSpace(req.Value), Note: req.Note}
 	if err := h.DB.Create(&r).Error; err != nil {
 		BadRequest(c, err.Error())
 		return
@@ -187,7 +222,7 @@ func (h *SiteAccessHandler) CreateIPRule(c *gin.Context) {
 }
 
 func (h *SiteAccessHandler) UpdateIPRule(c *gin.Context) {
-	sid, ok := h.siteID(c)
+	sid, lid, ok := h.scope(c)
 	if !ok {
 		return
 	}
@@ -197,7 +232,7 @@ func (h *SiteAccessHandler) UpdateIPRule(c *gin.Context) {
 		return
 	}
 	var r db.SiteIPRule
-	if err := h.DB.First(&r, "id = ? AND site_id = ?", rid, sid).Error; err != nil {
+	if err := scopeWhere(h.DB, sid, lid).First(&r, "id = ?", rid).Error; err != nil {
 		NotFound(c, "rule not found")
 		return
 	}
@@ -226,7 +261,7 @@ func (h *SiteAccessHandler) UpdateIPRule(c *gin.Context) {
 }
 
 func (h *SiteAccessHandler) DeleteIPRule(c *gin.Context) {
-	sid, ok := h.siteID(c)
+	sid, lid, ok := h.scope(c)
 	if !ok {
 		return
 	}
@@ -235,7 +270,7 @@ func (h *SiteAccessHandler) DeleteIPRule(c *gin.Context) {
 		BadRequest(c, "invalid rule id")
 		return
 	}
-	if err := h.DB.Delete(&db.SiteIPRule{}, "id = ? AND site_id = ?", rid, sid).Error; err != nil {
+	if err := scopeWhere(h.DB, sid, lid).Delete(&db.SiteIPRule{}, "id = ?", rid).Error; err != nil {
 		InternalError(c, err.Error())
 		return
 	}

@@ -37,7 +37,9 @@ Eine Location gilt für einen Pfad-Prefix und kann fast alles überschreiben, wa
 | `enabled` | Location aktiv/inaktiv |
 | `upstream_url` / `upstream_host` | Eigenes Backend für diesen Pfad |
 | `upstream_insecure_skip_verify` | TLS-Prüfung zum HTTPS-Upstream deaktivieren |
-| `auth_enabled` | Basic Auth für diesen Pfad (nutzt die Site-Benutzer) |
+| `auth_enabled` | Basic Auth für diesen Pfad |
+| `auth_users_mode` | `inherit` = Site-Benutzer, `own` = eigene Benutzer der Location |
+| `ip_rules_mode` | `inherit` = Site-Regeln, `own` = eigene Allow/Deny-Regeln |
 | `cache_enabled` / `cache_ttl` / `cache_max_object_kb` | Cache-Override |
 | `rate_limit_rps` / `rate_limit_burst` | Rate-Limit-Override |
 | `geoip_enabled` / `geoip_mode` / `geoip_countries` | GeoIP-Override |
@@ -55,7 +57,11 @@ Eine Location gilt für einen Pfad-Prefix und kann fast alles überschreiben, wa
 
 **Wichtig:**
 
-- Site-Benutzer (Basic Auth) gelten für die ganze Site. Eine Location kann Auth nur ein-/ausschalten, nicht eigene Benutzer haben.
+- **Eigene oder geerbte Benutzer:** `auth_users_mode=inherit` nutzt die Site-Benutzer, `own` eine eigene Benutzerliste der Location.
+- **Eigene oder geerbte IP-Regeln:** `ip_rules_mode=inherit` nutzt die Site-Regeln, `own` eine eigene Allow/Deny-Liste. „Own" **ersetzt** die Site-Regeln, es ist keine Addition.
+- Eigene Benutzer/Regeln werden unter **Site → Zugriff** über die Auswahl **Zugriffsebene** (Site oder Location) verwaltet.
+- `auth_enabled` bleibt der Schalter, ob für die Location überhaupt ein Login nötig ist.
+- Ist `own` gewählt und die Liste leer, gibt es keine gültigen Benutzer bzw. Regeln – Auth lehnt dann alle ab, die nicht über eine Allow-Regel der Location freigeschaltet sind.
 - Beim Anlegen/Ändern/Löschen einer Location wird der Cache der Site geleert.
 - Locations werden in der GUI unter **Site → Locations** verwaltet.
 
