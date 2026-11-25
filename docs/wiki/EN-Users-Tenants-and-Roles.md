@@ -15,7 +15,7 @@ A tenant is a boundary for sites, certificates, templates, GeoIP rules and users
 | Role | Scope | Permissions (summary) |
 |---|---|---|
 | `superadmin` | system | Everything, incl. tenants |
-| `tenant_admin` | tenant | Sites, templates, certificates, users, GeoIP, cache, CrowdSec within the tenant |
+| `tenant_admin` | tenant | Sites, templates, certificates, users, GeoIP, site cache within the tenant; global IP lists, CrowdSec writes, cache config and tenants remain superadmin-only |
 | `editor` | tenant | Read (write endpoints are restricted to superadmin/tenant_admin) |
 | `viewer` | tenant | Read |
 

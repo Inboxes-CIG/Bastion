@@ -89,6 +89,10 @@ func (h *CertHandler) Issue(c *gin.Context) {
 
 	var domains []string
 	siteID := req.SiteID
+	if siteID == "" && (len(req.Domains) > 0 || req.Domain != "") && cl.RoleName != "superadmin" {
+		Forbidden(c, "issuing certificates for free domains requires superadmin")
+		return
+	}
 	if siteID != "" {
 		var site db.Site
 		if err := h.DB.First(&site, "id = ?", siteID).Error; err != nil {

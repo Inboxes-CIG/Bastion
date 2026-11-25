@@ -54,6 +54,9 @@ type banRequest struct {
 }
 
 func (h *CrowdSecHandler) Add(c *gin.Context) {
+	if !requireSuperadmin(c) {
+		return
+	}
 	if h.CS == nil {
 		BadRequest(c, "crowdsec is not enabled")
 		return
@@ -72,6 +75,9 @@ func (h *CrowdSecHandler) Add(c *gin.Context) {
 }
 
 func (h *CrowdSecHandler) Delete(c *gin.Context) {
+	if !requireSuperadmin(c) {
+		return
+	}
 	if h.CS == nil {
 		BadRequest(c, "crowdsec is not enabled")
 		return

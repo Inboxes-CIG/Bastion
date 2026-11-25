@@ -61,3 +61,36 @@ func TestHostAllowedCIDRAndExact(t *testing.T) {
 		t.Error("out-of-range should not match")
 	}
 }
+
+func TestCheckLiveLiterals(t *testing.T) {
+	if err := CheckLive("http://169.254.169.254/latest", false, nil); err == nil {
+		t.Error("metadata IP must be blocked")
+	}
+	if err := CheckLive("http://127.0.0.1:8080/", false, nil); err == nil {
+		t.Error("loopback must be blocked")
+	}
+	if err := CheckLive("http://8.8.8.8/", false, nil); err != nil {
+		t.Errorf("public literal should pass: %v", err)
+	}
+	if err := CheckLive("http://10.10.20.188/", false, []string{"10.10.20.0/24"}); err != nil {
+		t.Errorf("allowlisted CIDR should pass: %v", err)
+	}
+	if err := CheckLive("http://localhost/", false, nil); err == nil {
+		t.Error("localhost must be blocked")
+	}
+	if err := CheckLive("http://localhost/", false, []string{"localhost"}); err != nil {
+		t.Errorf("allowlisted hostname should pass without DNS: %v", err)
+	}
+	if err := CheckLive("file:///etc/passwd", true, nil); err == nil {
+		t.Error("file scheme must be rejected")
+	}
+}
+
+func TestValidateURLHostnameAllowlistIsTrusted(t *testing.T) {
+	// An allowlisted hostname must report privateAllowed=true so the proxy
+	// path trusts it and never re-blocks it after a DNS change.
+	ok, err := ValidateURL("http://db.internal.example/", false, []string{"*.internal.example"})
+	if err != nil || !ok {
+		t.Errorf("expected (true, nil), got (%v, %v)", ok, err)
+	}
+}

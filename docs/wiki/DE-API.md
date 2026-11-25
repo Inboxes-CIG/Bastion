@@ -144,7 +144,7 @@ Payload:
 
 `null` = von Site/Template erben. Der Prefix wird normalisiert (`/api/` → `/api`).
 
-> **Upstream-Schutz (SSRF):** `upstream_url` wird beim Speichern geprüft: nur `http`/`https`, keine Loopback-, Link-Local-, CGNAT- oder RFC1918-Ziele und keine Hostnamen, die auf private Adressen auflösen. Ausnahmen: `security.upstream.allow_private: true`, der globale Eintrag `security.upstream.allowed_hosts` oder die Tenant-Allowlist `allowed_upstream_hosts` (Hosts, `*.domain` oder CIDRs). Abweichungen werden mit `400` (`upstream: …`) abgelehnt; im Proxy-Pfad blockierte Upstreams liefern `502` mit `block_reason=ssrf`.
+> **Upstream-Schutz (SSRF):** `upstream_url` wird beim Speichern **und bei jedem Request** geprüft (Hostnames werden mit kurzem DNS-Cache neu aufgelöst): nur `http`/`https`, keine Loopback-, Link-Local-, CGNAT- oder RFC1918-Ziele und keine Hostnamen, die auf private Adressen auflösen. Ausnahmen: `security.upstream.allow_private: true`, der globale Eintrag `security.upstream.allowed_hosts` oder die Tenant-Allowlist `allowed_upstream_hosts` (Hosts, `*.domain` oder CIDRs). Abweichungen werden mit `400` (`upstream: …`) abgelehnt; im Proxy-Pfad blockierte Upstreams liefern `502` mit `block_reason=ssrf`.
 
 ### Templates
 
@@ -167,7 +167,7 @@ Payload:
 | DELETE | `/certificates/:id` | superadmin, tenant_admin |
 
 `POST /certificates` = manueller Upload (`domain`, `cert_pem`, `key_pem`, `tenant_id`).
-`POST /certificates/issue` = Let's Encrypt (`site_id` oder `domain`, `email`).
+`POST /certificates/issue` = Let's Encrypt (`site_id` oder `domain`, `email`). Freie `domain`/`domains` ohne `site_id` sind dem Superadmin vorbehalten.
 
 ### Benutzer / Tenants / Rollen
 
@@ -204,23 +204,23 @@ Payload:
 |---|---|---|
 | GET | `/crowdsec/status` | alle |
 | GET | `/crowdsec/decisions` | alle |
-| POST/DELETE | `/crowdsec/decisions` | superadmin, tenant_admin |
+| POST/DELETE | `/crowdsec/decisions` | superadmin |
 | GET | `/crowdsec/alerts` | alle |
-| GET/POST/PUT/DELETE | `/crowdsec/good-actors` | Schreiben: superadmin, tenant_admin |
+| GET/POST/PUT/DELETE | `/crowdsec/good-actors` | Lesen: alle, Schreiben: superadmin |
 
 ### IP-Listen (global)
 
 | Methode | Pfad | Rolle |
 |---|---|---|
 | GET | `/iplist` | superadmin |
-| POST/PUT/DELETE | `/iplist` | superadmin, tenant_admin |
+| POST/PUT/DELETE | `/iplist` | superadmin |
 
 ### Cache
 
 | Methode | Pfad | Rolle |
 |---|---|---|
 | GET | `/cache` | alle |
-| PUT | `/cache/config` | superadmin, tenant_admin |
+| PUT | `/cache/config` | superadmin |
 | POST | `/cache/clear` | superadmin, tenant_admin |
 
 `POST /cache/clear` mit `{ "site_id": "…" }` leert eine Site, ohne Body alles.

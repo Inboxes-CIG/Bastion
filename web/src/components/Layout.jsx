@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Outlet, NavLink, useLocation } from 'react-router-dom'
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import Icon from './Icon.jsx'
 import ErrorBoundary from './ErrorBoundary.jsx'
 import { me, logout, api, changePassword } from '../api.js'
@@ -11,11 +11,11 @@ const NAV = [
   { to: '/logs', label: 'Logs', icon: 'clock' },
   { to: '/templates', label: 'Templates', icon: 'templates' },
   { to: '/certificates', label: 'Certificates', icon: 'certs' },
-  { to: '/crowdsec', label: 'CrowdSec', icon: 'shield' },
-  { to: '/iplist', label: 'IP-Listen', icon: 'templates' },
+  { to: '/crowdsec', label: 'CrowdSec', icon: 'shield', superOnly: true },
+  { to: '/iplist', label: 'IP-Listen', icon: 'templates', superOnly: true },
   { to: '/audit', label: 'Audit', icon: 'templates' },
   { to: '/users', label: 'Users', icon: 'users' },
-  { to: '/tenants', label: 'Tenants', icon: 'tenants' },
+  { to: '/tenants', label: 'Tenants', icon: 'tenants', superOnly: true },
   { to: '/settings', label: 'Settings', icon: 'settings' },
 ]
 
@@ -87,11 +87,21 @@ export default function Layout() {
   const [ver, setVer] = useState(null)
   const [open, setOpen] = useState(false)
   const loc = useLocation()
+  const nav = useNavigate()
 
   useEffect(() => {
     me().then(d => setUser(d.data)).catch(() => { window.location.href = '/login' })
     api('/version').then(d => setVer(d.data)).catch(() => {})
   }, [])
+
+  // Superadmin-only sections: redirect if a tenant user deep-links them.
+  useEffect(() => {
+    if (!user || user.role === 'superadmin') return
+    if (['/crowdsec', '/iplist', '/tenants'].some(p => loc.pathname.startsWith(p))) nav('/', { replace: true })
+  }, [user, loc.pathname, nav])
+
+  const isSuper = user?.role === 'superadmin'
+  const visibleNav = NAV.filter(n => !n.superOnly || user == null || isSuper)
 
   const navLink = ({ isActive }) =>
     `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
@@ -114,7 +124,7 @@ export default function Layout() {
           </div>
         </div>
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {NAV.map(n => (
+          {visibleNav.map(n => (
             <NavLink key={n.to} to={n.to} end={n.end} className={navLink} onClick={() => setOpen(false)}>
               <Icon name={n.icon} className="w-5 h-5" />
               {t(n.label)}

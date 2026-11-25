@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"unicode"
 
 	"github.com/inboxes-cig/bastion/internal/db"
 	"gorm.io/gorm"
@@ -159,6 +160,10 @@ func (c *Client) AddBan(value, duration, reason string) error {
 		args = append(args, "--duration", duration)
 	}
 	if reason != "" {
+		reason = sanitizeReason(reason)
+		if reason == "" {
+			return fmt.Errorf("invalid reason")
+		}
 		args = append(args, "--reason", reason)
 	}
 	out, err := exec.Command("cscli", args...).CombinedOutput()
@@ -166,6 +171,35 @@ func (c *Client) AddBan(value, duration, reason string) error {
 		return fmt.Errorf("cscli: %v: %s", err, strings.TrimSpace(string(out)))
 	}
 	return nil
+}
+
+// sanitizeReason keeps the reason a single, flag-free argument: no control
+// characters, no leading dash (which cscli would parse as another flag) and
+// capped length.
+func sanitizeReason(s string) string {
+	var b strings.Builder
+	prevSpace := false
+	for _, r := range s {
+		if unicode.IsControl(r) {
+			r = ' '
+		}
+		if r == ' ' {
+			if !prevSpace {
+				b.WriteByte(' ')
+			}
+			prevSpace = true
+			continue
+		}
+		prevSpace = false
+		b.WriteRune(r)
+	}
+	out := strings.TrimSpace(b.String())
+	out = strings.TrimLeft(out, "-")
+	runes := []rune(out)
+	if len(runes) > 200 {
+		out = string(runes[:200])
+	}
+	return out
 }
 
 func (c *Client) DeleteDecision(id string) error {
@@ -217,9 +251,15 @@ func (c *Client) Alerts(limit int) ([]Alert, error) {
 }
 
 func (c *Client) DeleteDecisionsByIP(value string) error {
+	value = strings.TrimSpace(value)
 	flag := "--ip"
 	if strings.Contains(value, "/") {
+		if _, _, err := net.ParseCIDR(value); err != nil {
+			return fmt.Errorf("invalid CIDR")
+		}
 		flag = "--range"
+	} else if net.ParseIP(value) == nil {
+		return fmt.Errorf("invalid IP")
 	}
 	out, err := exec.Command("cscli", "decisions", "delete", flag, value).CombinedOutput()
 	if err != nil {
@@ -240,10 +280,17 @@ func WriteGoodActors(d *gorm.DB, path string) error {
 		if v == "" {
 			continue
 		}
+		// Only canonical, valid IP/CIDR strings reach the YAML file. Anything
+		// else is skipped, which removes the quoting/injection surface
+		// entirely (no quotes, newlines or YAML specials can appear).
 		if strings.Contains(v, "/") {
-			cidrs = append(cidrs, v)
-		} else {
-			ips = append(ips, v)
+			if _, n, err := net.ParseCIDR(v); err == nil {
+				cidrs = append(cidrs, n.String())
+			}
+			continue
+		}
+		if ip := net.ParseIP(v); ip != nil {
+			ips = append(ips, ip.String())
 		}
 	}
 	var b strings.Builder

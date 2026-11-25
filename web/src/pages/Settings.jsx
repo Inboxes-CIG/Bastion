@@ -181,6 +181,7 @@ export default function Settings() {
         )}
       </Card>
 
+      {user.role === 'superadmin' && (
       <Card title={t("GUI-Zertifikat (Let's Encrypt)")} subtitle={t('Gültiges TLS-Zertifikat für die Admin-Oberfläche')}>
         <div className="text-sm text-slate-600 mb-2">{t('Admin-Hosts:')}</div>
         <div className="flex flex-wrap gap-1 mb-4">
@@ -214,7 +215,9 @@ export default function Settings() {
         {msg && <div className={`text-sm mt-2 ${msg.startsWith('Fehler')?'text-red-600':'text-emerald-600'}`}>{msg}</div>}
         <div className="mt-4"><Alert variant="info">{t('Die Admin-Domain muss öffentlich auf diesen Server zeigen und Port 80 erreichbar sein (HTTP-01). Zugriff dann über https://<Admin-Domain>/.')}</Alert></div>
       </Card>
+      )}
 
+      {user.role === 'superadmin' && (
       <Card title={t('Response-Cache')} subtitle={t('HTTP-Cache für anonyme GET-Anfragen')}>
         {!cacheCfg ? <Spinner /> : (
           <>
@@ -242,6 +245,7 @@ export default function Settings() {
           </>
         )}
       </Card>
+      )}
 
       <Card title={t('Version')}>
         <Row label={t('Installiert')} value={ver?.current || '—'} />

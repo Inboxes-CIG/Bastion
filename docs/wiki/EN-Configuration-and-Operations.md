@@ -159,7 +159,8 @@ The database is migrated automatically on startup (`AutoMigrate`).
 - Serve the GUI only over HTTPS and preferably a dedicated admin domain (`admin_hosts`); admin HTTP always answers `301`
 - Enable MFA for all GUI users; disabling it requires the password
 - Login lockout (3 attempts/10 min per IP+email), refresh rotation with theft detection, re-auth for sensitive user changes
-- Upstreams are SSRF-validated: private targets only via `security.upstream.allowed_hosts` or the tenant allowlist
+- Upstreams are SSRF-validated: private targets only via `security.upstream.allowed_hosts` or the tenant allowlist; the check re-runs live on every request (cached DNS re-resolution), so tampered DB rows or DNS rebinding cannot slip through
+- Unknown SNI names deliberately receive a self-signed default certificate (keeps the admin GUI reachable by IP)
 - Back up DB, config and certificates regularly
 - Keep `jwt_secret`, `session_secret` and the DB password secret
 - Firewall: only 80/443 (TCP) and 443/UDP (HTTP/3)

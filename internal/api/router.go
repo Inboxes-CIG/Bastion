@@ -125,13 +125,13 @@ func NewRouter(d Deps) *gin.Engine {
 
 			// Local IP allow/deny lists
 			protected.GET("/cache", cacheH.Get)
-			protected.PUT("/cache/config", auth.RequireRole("superadmin", "tenant_admin"), cacheH.Update)
+			protected.PUT("/cache/config", auth.RequireRole("superadmin"), cacheH.Update)
 			protected.POST("/cache/clear", auth.RequireRole("superadmin", "tenant_admin"), cacheH.Clear)
 
 			protected.GET("/iplist", auth.RequireRole("superadmin"), iplH.List)
-			protected.POST("/iplist", auth.RequireRole("superadmin", "tenant_admin"), iplH.Create)
-			protected.PUT("/iplist/:id", auth.RequireRole("superadmin", "tenant_admin"), iplH.Update)
-			protected.DELETE("/iplist/:id", auth.RequireRole("superadmin", "tenant_admin"), iplH.Delete)
+			protected.POST("/iplist", auth.RequireRole("superadmin"), iplH.Create)
+			protected.PUT("/iplist/:id", auth.RequireRole("superadmin"), iplH.Update)
+			protected.DELETE("/iplist/:id", auth.RequireRole("superadmin"), iplH.Delete)
 			protected.GET("/logs", statsH.Logs)
 			protected.GET("/logs/files", statsH.LogFiles)
 
@@ -196,13 +196,13 @@ func NewRouter(d Deps) *gin.Engine {
 			// CrowdSec
 			protected.GET("/crowdsec/status", csH.Status)
 			protected.GET("/crowdsec/decisions", csH.Decisions)
-			protected.POST("/crowdsec/decisions", auth.RequireRole("superadmin", "tenant_admin"), csH.Add)
-			protected.DELETE("/crowdsec/decisions/:id", auth.RequireRole("superadmin", "tenant_admin"), csH.Delete)
+			protected.POST("/crowdsec/decisions", auth.RequireRole("superadmin"), csH.Add)
+			protected.DELETE("/crowdsec/decisions/:id", auth.RequireRole("superadmin"), csH.Delete)
 			protected.GET("/crowdsec/alerts", csH.Alerts)
 			protected.GET("/crowdsec/good-actors", gaH.List)
-			protected.POST("/crowdsec/good-actors", auth.RequireRole("superadmin", "tenant_admin"), gaH.Create)
-			protected.PUT("/crowdsec/good-actors/:id", auth.RequireRole("superadmin", "tenant_admin"), gaH.Update)
-			protected.DELETE("/crowdsec/good-actors/:id", auth.RequireRole("superadmin", "tenant_admin"), gaH.Delete)
+			protected.POST("/crowdsec/good-actors", auth.RequireRole("superadmin"), gaH.Create)
+			protected.PUT("/crowdsec/good-actors/:id", auth.RequireRole("superadmin"), gaH.Update)
+			protected.DELETE("/crowdsec/good-actors/:id", auth.RequireRole("superadmin"), gaH.Delete)
 
 			protected.GET("/audit", auditH.List)
 			protected.GET("/version", versionH.Get)

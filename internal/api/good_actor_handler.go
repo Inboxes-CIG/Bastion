@@ -44,6 +44,9 @@ func (h *GoodActorHandler) sync(value string) {
 }
 
 func (h *GoodActorHandler) Create(c *gin.Context) {
+	if !requireSuperadmin(c) {
+		return
+	}
 	var req goodActorRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		BadRequest(c, err.Error())
@@ -63,6 +66,9 @@ func (h *GoodActorHandler) Create(c *gin.Context) {
 }
 
 func (h *GoodActorHandler) Update(c *gin.Context) {
+	if !requireSuperadmin(c) {
+		return
+	}
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		BadRequest(c, "invalid id")
@@ -93,6 +99,9 @@ func (h *GoodActorHandler) Update(c *gin.Context) {
 }
 
 func (h *GoodActorHandler) Delete(c *gin.Context) {
+	if !requireSuperadmin(c) {
+		return
+	}
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		BadRequest(c, "invalid id")

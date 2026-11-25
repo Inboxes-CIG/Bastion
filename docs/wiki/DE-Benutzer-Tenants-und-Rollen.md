@@ -15,7 +15,7 @@ Ein Tenant ist eine Mandantengrenze für Sites, Zertifikate, Templates, GeoIP-Re
 | Rolle | Scope | Rechte (Kurzfassung) |
 |---|---|---|
 | `superadmin` | system | Alles, inkl. Tenants |
-| `tenant_admin` | tenant | Sites, Templates, Zertifikate, Benutzer, GeoIP, Cache, CrowdSec im eigenen Tenant |
+| `tenant_admin` | tenant | Sites, Templates, Zertifikate, Benutzer, GeoIP, Site-Cache im eigenen Tenant; globale IP-Listen, CrowdSec-Schreibzugriffe, Cache-Konfiguration und Tenants bleiben Superadmin |
 | `editor` | tenant | Lesen (schreibende API-Endpunkte sind auf superadmin/tenant_admin beschränkt) |
 | `viewer` | tenant | Lesen |
 

@@ -144,7 +144,7 @@ Payload:
 
 `null` = inherit from site/template. The prefix is normalized (`/api/` → `/api`).
 
-> **Upstream protection (SSRF):** `upstream_url` is validated on save: only `http`/`https`; no loopback, link-local, CGNAT or RFC1918 targets and no hostnames that resolve to private addresses. Exceptions: `security.upstream.allow_private: true`, the global `security.upstream.allowed_hosts` list, or the tenant allowlist `allowed_upstream_hosts` (hosts, `*.domain` or CIDRs). Violations are rejected with `400` (`upstream: …`); upstreams blocked in the proxy path return `502` with `block_reason=ssrf`.
+> **Upstream protection (SSRF):** `upstream_url` is validated on save **and on every request** (hostnames are re-resolved with a short DNS cache): only `http`/`https`; no loopback, link-local, CGNAT or RFC1918 targets and no hostnames that resolve to private addresses. Exceptions: `security.upstream.allow_private: true`, the global `security.upstream.allowed_hosts` list, or the tenant allowlist `allowed_upstream_hosts` (hosts, `*.domain` or CIDRs). Violations are rejected with `400` (`upstream: …`); upstreams blocked in the proxy path return `502` with `block_reason=ssrf`.
 
 ### Templates
 
@@ -167,7 +167,7 @@ Payload:
 | DELETE | `/certificates/:id` | superadmin, tenant_admin |
 
 `POST /certificates` = manual upload (`domain`, `cert_pem`, `key_pem`, `tenant_id`).
-`POST /certificates/issue` = Let's Encrypt (`site_id` or `domain`, `email`).
+`POST /certificates/issue` = Let's Encrypt (`site_id` or `domain`, `email`). Free `domain`/`domains` without `site_id` are superadmin-only.
 
 ### Users / tenants / roles
 
@@ -204,23 +204,23 @@ Payload:
 |---|---|---|
 | GET | `/crowdsec/status` | any |
 | GET | `/crowdsec/decisions` | any |
-| POST/DELETE | `/crowdsec/decisions` | superadmin, tenant_admin |
+| POST/DELETE | `/crowdsec/decisions` | superadmin |
 | GET | `/crowdsec/alerts` | any |
-| GET/POST/PUT/DELETE | `/crowdsec/good-actors` | writes: superadmin, tenant_admin |
+| GET/POST/PUT/DELETE | `/crowdsec/good-actors` | read: any, writes: superadmin |
 
 ### Global IP lists
 
 | Method | Path | Role |
 |---|---|---|
 | GET | `/iplist` | superadmin |
-| POST/PUT/DELETE | `/iplist` | superadmin, tenant_admin |
+| POST/PUT/DELETE | `/iplist` | superadmin |
 
 ### Cache
 
 | Method | Path | Role |
 |---|---|---|
 | GET | `/cache` | any |
-| PUT | `/cache/config` | superadmin, tenant_admin |
+| PUT | `/cache/config` | superadmin |
 | POST | `/cache/clear` | superadmin, tenant_admin |
 
 `POST /cache/clear` with `{ "site_id": "…" }` clears one site; without a body it clears everything.

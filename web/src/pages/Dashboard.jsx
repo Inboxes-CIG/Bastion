@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { stats, api } from '../api.js'
+import { stats, api, getUser } from '../api.js'
 import { StatCard, Card, Badge, Spinner, Alert, Button } from '../components/UI.jsx'
 import Icon from '../components/Icon.jsx'
 import { t } from '../i18n.js'
@@ -289,10 +289,12 @@ export default function Dashboard() {
                 <Icon name="clock" className="w-5 h-5 text-sky-600" />
                 <span className="text-sm text-slate-700">{t('Logs')}</span>
               </Link>
+              {getUser()?.role === 'superadmin' && (
               <Link to="/crowdsec" className="flex flex-col items-center gap-2 p-4 rounded-lg border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40 transition-colors">
                 <Icon name="shield" className="w-5 h-5 text-rose-600" />
                 <span className="text-sm text-slate-700">CrowdSec</span>
               </Link>
+              )}
               <Link to="/certificates" className="flex flex-col items-center gap-2 p-4 rounded-lg border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40 transition-colors">
                 <Icon name="certs" className="w-5 h-5 text-emerald-600" />
                 <span className="text-sm text-slate-700">{t('Zertifikat')}</span>

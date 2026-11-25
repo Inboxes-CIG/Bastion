@@ -101,7 +101,7 @@ Upstream targets are checked both on save and at request time to prevent server-
 - Loopback, link-local (including `169.254.169.254` cloud metadata), CGNAT (`100.64/10`) and RFC1918 ranges are blocked by default.
 - Hostnames are resolved on save; a name that resolves to a private address is rejected.
 - **Exceptions:** `security.upstream.allow_private: true` (global), `security.upstream.allowed_hosts` (hosts/`*.domains`/CIDRs) or the tenant list `allowed_upstream_hosts`.
-- On create/update: `400` with `upstream: …`; at runtime: `502` with `block_reason=ssrf`.
+- On create/update: `400` with `upstream: …`; at runtime every request re-checks the target (DNS re-resolution with a short cache) and answers `502` with `block_reason=ssrf` on violations.
 
 > **Example:** a backend in the `10.10.20.0/24` network only works if that CIDR is in `security.upstream.allowed_hosts` (or the tenant allowlist).
 

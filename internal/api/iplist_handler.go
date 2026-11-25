@@ -35,7 +35,7 @@ type ipListRequest struct {
 }
 
 func (h *IPListHandler) Create(c *gin.Context) {
-	if !requireAnyRole(c, "superadmin", "tenant_admin") {
+	if !requireSuperadmin(c) {
 		return
 	}
 	var req ipListRequest
@@ -63,7 +63,7 @@ func (h *IPListHandler) Create(c *gin.Context) {
 }
 
 func (h *IPListHandler) Update(c *gin.Context) {
-	if !requireAnyRole(c, "superadmin", "tenant_admin") {
+	if !requireSuperadmin(c) {
 		return
 	}
 	id, err := uuid.Parse(c.Param("id"))
@@ -103,7 +103,7 @@ func (h *IPListHandler) Update(c *gin.Context) {
 }
 
 func (h *IPListHandler) Delete(c *gin.Context) {
-	if !requireAnyRole(c, "superadmin", "tenant_admin") {
+	if !requireSuperadmin(c) {
 		return
 	}
 	id, err := uuid.Parse(c.Param("id"))

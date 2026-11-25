@@ -628,7 +628,7 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 	if loc.UpstreamAllowPrivate || site.UpstreamAllowPrivate || (tmpl != nil && tmpl.UpstreamAllowPrivate) {
 		allowPrivate = true
 	}
-	if err := netguard.CheckLiteral(upstreamURL, allowPrivate, s.AllowedUpstreamHosts); err != nil {
+	if err := netguard.CheckLive(upstreamURL, allowPrivate, s.AllowedUpstreamHosts); err != nil {
 		entry.Blocked = true
 		entry.BlockReason = "ssrf"
 		log.Printf("upstream blocked for %s: %v", host, err)

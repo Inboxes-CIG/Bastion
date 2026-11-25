@@ -22,6 +22,9 @@ func (h *CacheHandler) Get(c *gin.Context) {
 }
 
 func (h *CacheHandler) Update(c *gin.Context) {
+	if !requireSuperadmin(c) {
+		return
+	}
 	if h.Cache == nil {
 		BadRequest(c, "cache not enabled")
 		return
