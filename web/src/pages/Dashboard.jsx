@@ -124,8 +124,9 @@ export default function Dashboard() {
     persist({ ...layout, order })
   }
 
-  const visible = useMemo(() => layout.order.filter(id => !layout.hidden.includes(id)), [layout])
-  const hidden = useMemo(() => layout.order.filter(id => layout.hidden.includes(id)), [layout])
+  const superU = getUser()?.role === 'superadmin'
+  const visible = useMemo(() => layout.order.filter(id => !layout.hidden.includes(id) && (superU || id !== 'system')), [layout, superU])
+  const hidden = useMemo(() => layout.order.filter(id => layout.hidden.includes(id) && (superU || id !== 'system')), [layout, superU])
 
   if (err) return <Alert variant="error">{err}</Alert>
   if (!data) return <Spinner />

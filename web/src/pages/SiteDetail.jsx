@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { api } from '../api.js'
+import { api, getUser } from '../api.js'
 import { Button, Input, Select, Field, Card, Toggle, Spinner, Alert, Badge, MultiSelect, Modal } from '../components/UI.jsx'
 import Icon from '../components/Icon.jsx'
 import { t } from '../i18n.js'
@@ -103,7 +103,10 @@ export default function SiteDetail() {
   const { id } = useParams()
   const nav = useNavigate()
   const isNew = id === 'new'
-  const [form, setForm] = useState(emptyForm())
+  const [form, setForm] = useState(emptyForm)
+  const cu = getUser()
+  const isSuper = cu?.role === 'superadmin'
+  const myTenantId = isSuper ? '' : (cu?.tenant_id || '')
   const [tab, setTab] = useState('general')
   const [templates, setTemplates] = useState([])
   const [tenants, setTenants] = useState([])
@@ -274,7 +277,7 @@ export default function SiteDetail() {
         extra_domains: (form.extra_domains||'').split(',').map(x=>x.trim()).filter(Boolean),
         template_id: form.template_id || null,
         cert_id: form.cert_id || null,
-        tenant_id: form.tenant_id,
+        tenant_id: isSuper ? form.tenant_id : myTenantId,
       }
       if (!payload.tenant_id) { setErr('Tenant erforderlich'); setSaving(false); return }
       if (isNew) {
@@ -339,10 +342,14 @@ export default function SiteDetail() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <Field label={t('Primary Domain')}><Input value={form.domain} onChange={e=>setForm({...form,domain:e.target.value})} placeholder="example.com" /></Field>
               <Field label="Tenant">
-                <Select value={form.tenant_id} onChange={e=>setForm({...form,tenant_id:e.target.value})}>
-                  <option value="">{t('— wählen —')}</option>
-                  {tenants.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
-                </Select>
+                {isSuper ? (
+                  <Select value={form.tenant_id} onChange={e=>setForm({...form,tenant_id:e.target.value})}>
+                    <option value="">{t('— wählen —')}</option>
+                    {tenants.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
+                  </Select>
+                ) : (
+                  <Select value={myTenantId} disabled>{tenants.filter(tn=>tn.id===myTenantId).map(tn=><option key={tn.id} value={tn.id}>{tn.name}</option>)}</Select>
+                )}
               </Field>
               <Field label="Template">
                 <Select value={form.template_id} onChange={e=>setForm({...form,template_id:e.target.value})}>

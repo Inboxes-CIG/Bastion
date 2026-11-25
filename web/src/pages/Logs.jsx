@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { api } from '../api.js'
+import { api, getUser } from '../api.js'
 import { Card, Button, Input, Select, Badge, Spinner, Alert, EmptyState } from '../components/UI.jsx'
 import Icon from '../components/Icon.jsx'
 import { t } from '../i18n.js'
@@ -23,6 +23,8 @@ export default function Logs() {
   const [live, setLive] = useState(true)
   const [hideAdmin, setHideAdmin] = useState(false)
   const timer = useRef(null)
+
+  const isSuper = getUser()?.role === 'superadmin'
 
   useEffect(() => {
     api('/sites').then(d=>setSites(d.data||[])).catch(()=>{})
@@ -67,8 +69,12 @@ export default function Logs() {
             <label className="text-xs text-slate-500 mb-1 block">{t('Site')}</label>
             <Select value={site} onChange={e=>setSite(e.target.value)}>
               <option value="">{t('Alle Sites')}</option>
-              <option value="(admin)">{t('(admin – GUI)')}</option>
-              <option value="(unknown)">{t('(unknown – fremde Hosts)')}</option>
+              {isSuper && (
+                <>
+                  <option value="(admin)">{t('(admin – GUI)')}</option>
+                  <option value="(unknown)">{t('(unknown – fremde Hosts)')}</option>
+                </>
+              )}
               {sites.map(s=><option key={s.id} value={s.domain}>{s.domain}</option>)}
             </Select>
           </div>
@@ -86,9 +92,11 @@ export default function Logs() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <label className="flex items-center gap-2 text-sm text-slate-600 mr-2">
-            <input type="checkbox" checked={hideAdmin} onChange={e=>setHideAdmin(e.target.checked)} /> {t('Bastion ausblenden')}
-          </label>
+          {isSuper && (
+            <label className="flex items-center gap-2 text-sm text-slate-600 mr-2">
+              <input type="checkbox" checked={hideAdmin} onChange={e=>setHideAdmin(e.target.checked)} /> {t('Bastion ausblenden')}
+            </label>
+          )}
           <Button variant={live ? 'success' : 'secondary'} onClick={()=>setLive(!live)}>
             <span className={`w-2 h-2 rounded-full ${live?'bg-white':'bg-slate-400'}`}></span> {live ? 'Live' : t('Pausiert')}
           </Button>

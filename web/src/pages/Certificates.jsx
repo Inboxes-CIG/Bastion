@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api } from '../api.js'
+import { api, getUser } from '../api.js'
 import { Card, Button, Input, Textarea, Select, Field, Modal, Table, Alert, EmptyState, Spinner, Badge } from '../components/UI.jsx'
 import Icon from '../components/Icon.jsx'
 import { t } from '../i18n.js'
@@ -12,11 +12,15 @@ export default function Certificates() {
   const [form, setForm] = useState({ domain:'', cert_pem:'', key_pem:'', tenant_id:'' })
   const [msg, setMsg] = useState('')
 
+  const cu = getUser()
+  const isSuper = cu?.role === 'superadmin'
+  const myTenantId = isSuper ? '' : (cu?.tenant_id || '')
+
   const load = () => api('/certificates').then(d=>setItems(d.data||[])).catch(e=>setErr(e.message))
   useEffect(() => { load(); api('/tenants').then(d=>setTenants(d.data||[])).catch(()=>{}) }, [])
 
   const upload = async () => {
-    try { await api('/certificates', { method:'POST', body: JSON.stringify(form) }); setOpenUpload(false); setForm({domain:'',cert_pem:'',key_pem:'',tenant_id:''}); load() }
+    try { await api('/certificates', { method:'POST', body: JSON.stringify({ ...form, tenant_id: isSuper ? form.tenant_id : myTenantId }) }); setOpenUpload(false); setForm({domain:'',cert_pem:'',key_pem:'',tenant_id:''}); load() }
     catch(e) { setMsg(e.message) }
   }
   const del = async (id) => { if (!confirm(t('Zertifikat löschen?'))) return; await api('/certificates/'+id, { method:'DELETE' }); load() }
@@ -55,7 +59,13 @@ export default function Certificates() {
           <Field label={t('Domain')} hint={t('Primäre Domain (z. B. example.com). Alle SANs aus dem Zertifikat – auch Wildcards wie *.example.com – werden automatisch übernommen.')}><Input value={form.domain} onChange={e=>setForm({...form,domain:e.target.value})} /></Field>
           <Field label="Certificate PEM (inkl. Chain)"><Textarea value={form.cert_pem} onChange={e=>setForm({...form,cert_pem:e.target.value})} /></Field>
           <Field label="Private Key PEM"><Textarea value={form.key_pem} onChange={e=>setForm({...form,key_pem:e.target.value})} /></Field>
-          <Field label={t('Tenant')}><Select value={form.tenant_id} onChange={e=>setForm({...form,tenant_id:e.target.value})}><option value="">—</option>{tenants.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</Select></Field>
+          <Field label={t('Tenant')}>
+            {isSuper ? (
+              <Select value={form.tenant_id} onChange={e=>setForm({...form,tenant_id:e.target.value})}><option value="">—</option>{tenants.map(tn=><option key={tn.id} value={tn.id}>{tn.name}</option>)}</Select>
+            ) : (
+              <Select value={myTenantId} disabled>{tenants.filter(tn=>tn.id===myTenantId).map(tn=><option key={tn.id} value={tn.id}>{tn.name}</option>)}</Select>
+            )}
+          </Field>
         </div>
       </Modal>
     </div>

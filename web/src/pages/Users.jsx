@@ -98,7 +98,12 @@ export default function Users() {
               <Input type="password" autoComplete="new-password" value={form.reauth} onChange={e=>setForm({...form,reauth:e.target.value})} placeholder={t('Nur bei sensiblen Änderungen erforderlich')} />
             </Field>
           )}
-          <Field label={t('Rolle')}><Select value={form.role_id} onChange={e=>setForm({...form,role_id:e.target.value})}><option value="">—</option>{roles.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</Select></Field>
+          <Field label={t('Rolle')}>
+            <Select value={form.role_id} onChange={e=>setForm({...form,role_id:e.target.value})}>
+              <option value="">—</option>
+              {(isSuper ? roles : roles.filter(r=>r.scope!=='system')).map(r=><option key={r.id} value={r.id}>{r.name}</option>)}
+            </Select>
+          </Field>
           <Field label={t('Tenant')}>
             {isSuper ? (
               <Select value={form.tenant_id} onChange={e=>setForm({...form,tenant_id:e.target.value})}><option value="">— (System)</option>{tenants.map(tn=><option key={tn.id} value={tn.id}>{tn.name}</option>)}</Select>

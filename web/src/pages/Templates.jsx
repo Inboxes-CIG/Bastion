@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api } from '../api.js'
+import { api, getUser } from '../api.js'
 import { Card, Button, Input, Select, Field, Modal, Table, Toggle, Alert, EmptyState, Spinner, MultiSelect } from '../components/UI.jsx'
 import Icon from '../components/Icon.jsx'
 import { t } from '../i18n.js'
@@ -15,10 +15,14 @@ export default function Templates() {
   const [form, setForm] = useState(empty)
   const [countries, setCountries] = useState([])
 
+  const cu = getUser()
+  const isSuper = cu?.role === 'superadmin'
+  const myTenantId = isSuper ? '' : (cu?.tenant_id || '')
+
   const load = () => api('/templates').then(d=>setItems(d.data||[])).catch(e=>setErr(e.message))
   useEffect(() => { load(); api('/tenants').then(d=>setTenants(d.data||[])).catch(()=>{}); api('/geoip/countries').then(d=>setCountries(d.data||[])).catch(()=>{}) }, [])
 
-  const openNew = () => { setEditing(null); setForm(empty); setOpen(true) }
+  const openNew = () => { setEditing(null); setForm({...empty, tenant_id: myTenantId}); setOpen(true) }
   const openEdit = (tpl) => {
     setEditing(tpl.id)
     setForm({
@@ -34,7 +38,7 @@ export default function Templates() {
 
   const save = async () => {
     try {
-      const payload = { ...form, upstream_url: form.upstream_url || null, upstream_host: form.upstream_host || null }
+      const payload = { ...form, tenant_id: isSuper ? form.tenant_id : myTenantId, upstream_url: form.upstream_url || null, upstream_host: form.upstream_host || null }
       if (editing) await api('/templates/'+editing, { method:'PUT', body: JSON.stringify(payload) })
       else await api('/templates', { method:'POST', body: JSON.stringify(payload) })
       setOpen(false); load()
@@ -76,7 +80,13 @@ export default function Templates() {
         footer={<><Button variant="secondary" onClick={()=>setOpen(false)}>{t('Abbrechen')}</Button><Button onClick={save}>{t('Speichern')}</Button></>}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label={t('Name')}><Input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} /></Field>
-          <Field label={t('Tenant')}><Select value={form.tenant_id} onChange={e=>setForm({...form,tenant_id:e.target.value})}><option value="">—</option>{tenants.map(tn=><option key={tn.id} value={tn.id}>{tn.name}</option>)}</Select></Field>
+          <Field label={t('Tenant')}>
+            {isSuper ? (
+              <Select value={form.tenant_id} onChange={e=>setForm({...form,tenant_id:e.target.value})}><option value="">—</option>{tenants.map(tn=><option key={tn.id} value={tn.id}>{tn.name}</option>)}</Select>
+            ) : (
+              <Select value={myTenantId} disabled>{tenants.filter(tn=>tn.id===myTenantId).map(tn=><option key={tn.id} value={tn.id}>{tn.name}</option>)}</Select>
+            )}
+          </Field>
           <Field label={t('Beschreibung')} className="sm:col-span-2"><Input value={form.description} onChange={e=>setForm({...form,description:e.target.value})} /></Field>
           <Field label={t('Upstream URL')} className="sm:col-span-2"><Input value={form.upstream_url} onChange={e=>setForm({...form,upstream_url:e.target.value})} placeholder="http://backend:8080" /></Field>
           <Field label={t('Upstream Host / Name (Host-Header)')} className="sm:col-span-2"><Input value={form.upstream_host} onChange={e=>setForm({...form,upstream_host:e.target.value})} placeholder={t('z.B. backend.internal (leer = Original-Host)')} /></Field>
