@@ -142,6 +142,7 @@ The database is migrated automatically on startup (`AutoMigrate`).
 | GUI shows `password_change_required` | The account must change its password first (mandatory dialog after login) |
 | Creating a site fails: `upstream: …private…` | Upstream target is private/loopback; add host/CIDR to `security.upstream.allowed_hosts` or the tenant `allowed_upstream_hosts` |
 | `502` with `block_reason=ssrf` | Upstream resolves to a private IP later on or is no longer on the allowlist |
+| Error card inside the page area only | Individual GUI pages have their own error boundary: "Try again" or switch pages – no full reload needed |
 | Wrong certificate | Domain not in SAN; re-issue |
 | GUI unreachable | Firewall 443, admin host/IP, service status |
 | GeoIP has no effect | MMDB missing/not loaded; `journalctl -u bastion | grep -i geoip` |

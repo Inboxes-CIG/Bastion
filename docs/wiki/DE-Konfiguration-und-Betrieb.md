@@ -142,6 +142,7 @@ Die Datenbank wird beim Start automatisch migriert (`AutoMigrate`).
 | GUI meldet `password_change_required` | Konto muss zuerst sein Passwort ändern (Pflichtdialog nach dem Login) |
 | Site-Anlegen schlägt fehl: `upstream: …private…` | Upstream-Ziel ist privat/Loopback; Host/CIDR in `security.upstream.allowed_hosts` oder Tenant-`allowed_upstream_hosts` eintragen |
 | `502` mit `block_reason=ssrf` | Upstream löst nachträglich auf eine private IP auf oder steht nicht mehr auf der Allowlist |
+| Fehlerkarte nur im Seitenbereich | Einzelne GUI-Seiten haben eine eigene Fehlergrenze: „Erneut versuchen" oder einfach andere Seite wählen – das Problem muss keinen Reload bedeuten |
 | Zertifikat falsch | Domain nicht im SAN; neu ausstellen |
 | GUI nicht erreichbar | Firewall 443, Admin-Host/IP, Dienststatus |
 | GeoIP wirkt nicht | MMDB fehlt/nicht geladen; `journalctl -u bastion | grep -i geoip` |
