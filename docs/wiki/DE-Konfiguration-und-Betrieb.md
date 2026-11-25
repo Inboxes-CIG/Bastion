@@ -8,16 +8,17 @@ Pfad: `/etc/bastion/config.yaml` (root:`bastion`, 0640)
 server:
   http_addr: ":80"
   https_addr: ":443"
-  api_addr: ":8080"          # API (HTTP, intern halten!)
+  api_addr: "127.0.0.1:8080"  # API-Bind; Standard ist Loopback-only (leer = 127.0.0.1:8080)
   admin_hosts: []            # z. B. ["bastion.example.com"]; leer = localhost (IPs sind immer Admin-Hosts)
+  cors_origins: []           # CORS nur für diese Origins zulassen (Standard: keine)
   http3: true
 
 database:
   url: "postgres://waf:PASSWORT@localhost:5432/waf?sslmode=disable"
 
 auth:
-  jwt_secret: "…"            # auch Key für die MFA-Verschlüsselung
-  session_secret: "…"
+  jwt_secret: "…"            # signiert Access-/Refresh-Tokens
+  session_secret: "…"        # verschlüsselt MFA-Secrets (AES-256-GCM)
 
 certs:
   storage_dir: "/var/lib/bastion/certs"
@@ -44,6 +45,9 @@ cache:
   max_total_mb: 64
 
 security:
+  upstream:
+    allow_private: false      # private/Loopback-Upstreams global erlauben (unsicher)
+    allowed_hosts: []         # CIDRs/Hosts/`*.domains`, die als Upstream dürfen (z. B. ["10.0.0.0/8"])
   auto_ban_404:
     enabled: true
     threshold: 50
@@ -52,10 +56,11 @@ security:
 
 ### Hinweise
 
-- **`server.api_addr`** ist HTTP und sollte nur intern erreichbar sein. Die GUI nutzt `/api/` über den Admin-Host auf 443.
+- **`server.api_addr`** bindet die API standardmäßig an `127.0.0.1:8080` – von außen nicht erreichbar. Die GUI nutzt `/api/` über den Admin-Host auf 443.
 - **`server.admin_hosts`**: Ist die Liste leer, gilt `localhost`; **jede IP-Adresse** gilt zusätzlich automatisch als Admin-Host.
+- **`server.cors_origins`**: Leere Liste = keine Cross-Origin-Requests erlaubt; die GUI ist same-origin.
 - **`cache.json`** (`/var/lib/bastion/cache.json`) überschreibt die Cache-Werte aus `config.yaml`, sobald du sie in der GUI änderst.
-- **`auth.jwt_secret`** schützt Tokens **und** verschlüsselt MFA-Secrets. Änderung meldet alle Benutzer ab und macht bestehende MFA-Secrets unlesbar (MFA muss zurückgesetzt werden).
+- **`auth.jwt_secret`** signiert alle Tokens; **`auth.session_secret`** verschlüsselt MFA-Secrets. Eine Änderung von `jwt_secret` meldet alle Benutzer ab; eine Änderung von `session_secret` macht neu angelegte MFA-Secrets unlesbar (ältere, mit `jwt_secret` verschlüsselte Secrets bleiben lesbar).
 - **Secrets** werden vom Installer auch in `/etc/bastion/.secrets.env` abgelegt (0600).
 
 ## systemd
@@ -64,6 +69,7 @@ security:
 [Service]
 User=bastion
 Group=bastion
+Environment=GIN_MODE=release
 ExecStart=/opt/bastion/bin/bastion
 Restart=on-failure
 RestartSec=5
@@ -132,6 +138,10 @@ Die Datenbank wird beim Start automatisch migriert (`AutoMigrate`).
 | `403` trotz richtiger URL | Site deaktiviert, IP-Deny, CrowdSec, GeoIP oder Auto-Ban |
 | `429` | Rate Limit oder Basic-Auth-Lockout (`Retry-After` beachten) |
 | `401` | Basic Auth aktiv, aber keine/ungültige Zugangsdaten |
+| Login `429` in der GUI | Lockout nach 3 Fehlversuchen (IP **und** E-Mail, 10 Minuten); warten oder Client-IP wechseln |
+| GUI meldet `password_change_required` | Konto muss zuerst sein Passwort ändern (Pflichtdialog nach dem Login) |
+| Site-Anlegen schlägt fehl: `upstream: …private…` | Upstream-Ziel ist privat/Loopback; Host/CIDR in `security.upstream.allowed_hosts` oder Tenant-`allowed_upstream_hosts` eintragen |
+| `502` mit `block_reason=ssrf` | Upstream löst nachträglich auf eine private IP auf oder steht nicht mehr auf der Allowlist |
 | Zertifikat falsch | Domain nicht im SAN; neu ausstellen |
 | GUI nicht erreichbar | Firewall 443, Admin-Host/IP, Dienststatus |
 | GeoIP wirkt nicht | MMDB fehlt/nicht geladen; `journalctl -u bastion | grep -i geoip` |
@@ -143,20 +153,22 @@ Die Datenbank wird beim Start automatisch migriert (`AutoMigrate`).
 
 ## Sicherheit
 
-- GUI nur über HTTPS und idealerweise eine eigene Admin-Domain (`admin_hosts`)
-- API-Port 8080 nicht öffentlich
-- MFA für alle GUI-Benutzer aktivieren
+- API bindet standardmäßig an `127.0.0.1:8080` – nicht öffentlich; GUI läuft über den Admin-Host auf 443
+- GUI nur über HTTPS und idealerweise eine eigene Admin-Domain (`admin_hosts`); Admin-HTTP antwortet immer mit `301`
+- MFA für alle GUI-Benutzer aktivieren; Deaktivierung erfordert Passwort
+- Login-Lockout (3 Versuche/10 min pro IP+E-Mail), Refresh-Rotation mit Diebstahl-Erkennung, Reauth für sensible Benutzeränderungen
+- Upstreams SSRF-geprüft: private Ziele nur über `security.upstream.allowed_hosts` bzw. Tenant-Allowlist
 - Regelmäßige Backups von DB, Config und Zertifikaten
-- `jwt_secret` und DB-Passwort geheim halten
+- `jwt_secret`, `session_secret` und DB-Passwort geheim halten
 - Firewall: nur 80/443 (TCP) und 443/UDP (HTTP/3)
 - Bei Betrieb hinter einem CDN/Proxy: `X-Forwarded-For` nur von vertrauenswürdigen Quellen akzeptieren (Bastion vertraut dem Header)
 
-## Bekannte Einschränkungen (v1.0.5)
+## Bekannte Einschränkungen (v1.0.6)
 
-- Einige GUI-Optionen sind noch nicht erzwungen: HSTS, Compression, Max Body Size, Custom Headers, Force-HTTPS-Schalter, HTTP/2-/WebSocket-Schalter. Details: [Sites & Templates](https://github.com/Inboxes-CIG/Bastion/wiki/DE-Sites-und-Templates).
+- Einige GUI-Optionen sind noch nicht erzwungen: HSTS, Compression, Max Body Size, Custom Headers, HTTP/2-/WebSocket-Schalter. Details: [Sites & Templates](https://github.com/Inboxes-CIG/Bastion/wiki/DE-Sites-und-Templates).
+- Access-Token (15 min) laufen aus, sind aber bis dahin nicht einzeln widerrufbar; Refresh-Token werden rotiert und serverseitig gesperrt.
 - Cache ist nicht persistent über Neustarts.
 - Keine automatische Cache-Invalidierung beim Löschen/Ändern einer Site (Locations leeren den Cache).
 - MFA hat keine Recovery-Codes.
-- Keine serverseitige Token-Sperrliste.
 
 Weiter: [API-Referenz](https://github.com/Inboxes-CIG/Bastion/wiki/DE-API)

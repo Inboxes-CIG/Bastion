@@ -93,6 +93,18 @@ Bastion compares the `Host` header (without port), case-insensitively, with `dom
 - WebSocket upgrades are supported automatically.
 - The upstream must be reachable from the Bastion host; `127.0.0.1` refers to the Bastion server.
 
+### SSRF protection (v1.0.6)
+
+Upstream targets are checked both on save and at request time to prevent server-side request forgery:
+
+- Only `http`/`https` schemes; `file:`, `gopher:` and friends are rejected.
+- Loopback, link-local (including `169.254.169.254` cloud metadata), CGNAT (`100.64/10`) and RFC1918 ranges are blocked by default.
+- Hostnames are resolved on save; a name that resolves to a private address is rejected.
+- **Exceptions:** `security.upstream.allow_private: true` (global), `security.upstream.allowed_hosts` (hosts/`*.domains`/CIDRs) or the tenant list `allowed_upstream_hosts`.
+- On create/update: `400` with `upstream: …`; at runtime: `502` with `block_reason=ssrf`.
+
+> **Example:** a backend in the `10.10.20.0/24` network only works if that CIDR is in `security.upstream.allowed_hosts` (or the tenant allowlist).
+
 > **HTTPS upstream with a self-signed certificate:** set `upstream_insecure_skip_verify` (site/location/template) to `true`. This disables certificate verification towards the backend. Only use it when the upstream is trusted and the certificate cannot be fixed otherwise.
 
 ## HTTP/2 and HTTP/3
@@ -119,7 +131,7 @@ Admin hosts and IP addresses are **always** redirected to HTTPS, regardless of t
 - **Disable location** → fall back to the site configuration.
 - Clear the site cache manually after site changes; location changes clear it automatically.
 
-## Known limitations (v1.0.5)
+## Known limitations (v1.0.6)
 
 These fields exist in the model and UI but are **not** applied in the request path yet:
 

@@ -2,7 +2,7 @@
 
 Base URLs:
 
-- Internal: `http://<server>:8080/api/v1`
+- Default: `http://127.0.0.1:8080/api/v1` – the API binds to **loopback only** out of the box (`server.api_addr` in `/etc/bastion/config.yaml`, empty = `127.0.0.1:8080`)
 - Via admin host: `https://<admin-host>/api/v1`
 
 The API speaks JSON. Responses use:
@@ -32,11 +32,14 @@ Content-Type: application/json
 { "email": "admin@bastion.local", "password": "…" }
 ```
 
+After **three** failed attempts within 10 minutes, both the IP address **and** the email are locked for 10 minutes → `429` with `Retry-After`. A successful login resets both counters.
+
 Without MFA:
 
 ```json
 { "data": { "tokens": { "access_token": "…", "refresh_token": "…", "expires_in": 900 },
-            "user": { "id": "…", "email": "…", "role": "superadmin", "tenant_id": null } } }
+            "user": { "id": "…", "email": "…", "role": "superadmin", "tenant_id": null,
+                      "must_change_password": false } } }
 ```
 
 With MFA:
@@ -59,14 +62,32 @@ POST /auth/refresh
 { "refresh_token": "…" }
 ```
 
+Refresh tokens **rotate**: every token presented is added to a server-side blacklist and replaced by a new one. Re-submitting an already-used token is treated as theft – the user's entire token family is revoked and they must sign in again. Sign out:
+
+```http
+POST /auth/logout
+{ "refresh_token": "…" }
+```
+
+`/auth/logout` immediately blacklists the refresh token provided.
+
+### Change password
+
+```http
+POST /auth/change-password
+{ "current_password": "…", "new_password": "…" }
+```
+
+A successful change revokes **all** refresh tokens of the account. If `must_change_password` is set, the API blocks every endpoint except `/auth/me`, `/auth/change-password` and `/auth/logout` with `403` (`code: password_change_required`) until the password is changed. The GUI shows a mandatory dialog.
+
 ### Own account / MFA
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/auth/me` | User + `mfa_enabled` |
+| GET | `/auth/me` | User + `mfa_enabled` + `must_change_password` |
 | POST | `/auth/mfa/setup` | Secret + QR + otpauth URL |
 | POST | `/auth/mfa/enable` | `{ "code": "…" }` |
-| POST | `/auth/mfa/disable` | `{ "code": "…" }` |
+| POST | `/auth/mfa/disable` | `{ "code": "…", "password": "…" }` – requires the account password in addition to the TOTP code |
 
 ### Health
 
@@ -103,7 +124,7 @@ Payload:
 {
   "path_prefix": "/api",
   "enabled": true,
-  "upstream_url": "http://127.0.0.1:8080",
+  "upstream_url": "http://backend.example.com",
   "upstream_host": null,
   "upstream_insecure_skip_verify": false,
   "auth_enabled": null,
@@ -122,6 +143,8 @@ Payload:
 ```
 
 `null` = inherit from site/template. The prefix is normalized (`/api/` → `/api`).
+
+> **Upstream protection (SSRF):** `upstream_url` is validated on save: only `http`/`https`; no loopback, link-local, CGNAT or RFC1918 targets and no hostnames that resolve to private addresses. Exceptions: `security.upstream.allow_private: true`, the global `security.upstream.allowed_hosts` list, or the tenant allowlist `allowed_upstream_hosts` (hosts, `*.domain` or CIDRs). Violations are rejected with `400` (`upstream: …`); upstreams blocked in the proxy path return `502` with `block_reason=ssrf`.
 
 ### Templates
 
@@ -155,6 +178,10 @@ Payload:
 | GET | `/tenants` | any |
 | POST/PUT/DELETE | `/tenants` | superadmin |
 
+- `POST /users` requires a `password`; new users get `must_change_password = true` and must change it at first login.
+- Sensitive `PUT /users/:id` changes (role, email, tenant, status, password reset) require `reauth_password` – the password of the **acting** account. Missing or wrong: `403`.
+- Tenants accept `allowed_upstream_hosts` (list of hosts, `*.domains` or CIDRs) to permit private upstreams.
+
 ### Site access
 
 | Method | Path | Role |
@@ -185,7 +212,7 @@ Payload:
 
 | Method | Path | Role |
 |---|---|---|
-| GET | `/iplist` | any |
+| GET | `/iplist` | superadmin |
 | POST/PUT/DELETE | `/iplist` | superadmin, tenant_admin |
 
 ### Cache
@@ -203,11 +230,17 @@ Payload:
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/logs` | Access logs (`site`, `blocked`, `status`, `q`, `limit`, `file`, `hide_admin`) |
-| GET | `/logs/files` | Available daily files |
+| GET | `/logs/files` | Available daily files (superadmin) |
 | GET | `/audit` | Audit log (search includes `details`) |
 | GET | `/stats` | Dashboard data |
 | GET | `/version` | Installed/latest version |
 | GET | `/admin/info` | Admin hosts/info |
+
+`/logs`, `/stats` and `/audit` are **tenant-scoped**: non-superadmins only see entries and counters of their own tenant's sites; `/logs?file=…` (daily files) and system metrics are superadmin-only.
+
+## Security headers & CORS
+
+All responses (API and GUI) carry `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY` and `Referrer-Policy: no-referrer`. Cross-origin requests are accepted only if the `Origin` is listed in `server.cors_origins`; the default is no CORS allowance – the GUI is same-origin and needs none.
 
 ## Examples
 
@@ -223,7 +256,7 @@ curl -s http://127.0.0.1:8080/api/v1/sites -H "Authorization: Bearer $TOKEN" | j
 # Create a location
 curl -s -X POST http://127.0.0.1:8080/api/v1/sites/<site-id>/locations \
   -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
-  -d '{"path_prefix":"/api","upstream_url":"http://127.0.0.1:8080","cache_enabled":false}'
+  -d '{"path_prefix":"/api","upstream_url":"http://backend.example.com","cache_enabled":false}'
 
 # Clear one site's cache
 curl -s -X POST http://127.0.0.1:8080/api/v1/cache/clear \
@@ -236,10 +269,10 @@ curl -s -X POST http://127.0.0.1:8080/api/v1/cache/clear \
 | Code | Meaning |
 |---|---|
 | 200/201/204 | Success |
-| 400 | Validation error |
-| 401 | Not signed in / invalid token |
-| 403 | Role not allowed or site/IP blocked |
-| 404 | Resource not found |
-| 429 | Rate limit or auth lockout |
+| 400 | Validation error (including rejected upstream targets: `upstream: …`) |
+| 401 | Not signed in / invalid or revoked token |
+| 403 | Role not allowed, re-auth failed or `password_change_required` |
+| 404 | Resource not found – or not visible in your tenant (IDOR protection: foreign tenant resources always return 404, never 403) |
+| 429 | Rate limit or login lockout (3 failed attempts / 10 min per IP+email) |
 | 500 | Internal error |
-| 502 | Unknown site or upstream error |
+| 502 | Unknown site or upstream error (incl. `block_reason=ssrf`) |

@@ -66,7 +66,7 @@ journalctl -u bastion | grep -A4 'INITIAL SUPERADMIN'
 - E-Mail: die beim Installer angegebene Adresse (Default: `admin@<hostname>` oder `admin@bastion.local`)
 - GUI: `https://<hostname>/` oder `https://<server-ip>/` (selbstsigniertes Zertifikat akzeptieren)
 - Das Passwort wird beim ersten Start generiert und im Journal ausgegeben, sofern keines übergeben wurde
-- Passwort nach dem ersten Login ändern
+- Beim ersten Login erscheint ein **Pflichtdialog**, der die Passwortänderung erzwingt (`must_change_password`)
 
 ## Upgrade
 
@@ -117,7 +117,7 @@ sudo rm -f /etc/crowdsec/parsers/s02-enrich/bastion-good-actors.yaml
 |---|---|
 | 80/tcp | öffentlich (ACME + Redirect) |
 | 443/tcp, 443/udp | öffentlich (HTTPS + HTTP/3) |
-| 8080/tcp | **nur intern** (API, HTTP) |
+| 8080/tcp | bindet standardmäßig an `127.0.0.1` (API) und ist damit **nicht** erreichbar; nur bei gesetztem `server.api_addr: ":8080"` öffentlich |
 | 8081/tcp | nur localhost (CrowdSec LAPI) |
 
 Beispiel mit ufw:

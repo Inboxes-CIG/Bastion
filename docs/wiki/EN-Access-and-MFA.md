@@ -88,8 +88,9 @@ Every GUI user can enable MFA under **Settings → Two-Factor Authentication (MF
 
 - Standard TOTP (RFC 6238), 6 digits, 30 seconds
 - QR code + manual key
-- Secret stored encrypted with **AES-256-GCM** (key derived from the JWT secret)
+- Secret stored encrypted with **AES-256-GCM** (key derived from `auth.session_secret`; older secrets encrypted with `jwt_secret` remain readable)
 - Two-step login: password → `mfa_token` (5 min) → code → tokens
+- **Disabling** requires the current TOTP code **and** the account password
 - No recovery codes
 
 **Reset MFA** (e.g. lost device):
@@ -101,8 +102,9 @@ UPDATE users SET mfa_enabled = false, mfa_secret = '' WHERE email = '<user-email
 ## Sessions
 
 - Access token: 15 minutes
-- Refresh token: 7 days
+- Refresh token: 7 days, rotating; used tokens are blacklisted server-side (table `refresh_tokens`). Reuse revokes the whole family.
 - MFA token: 5 minutes
-- Logout removes the browser token; there is no server-side revocation list.
+- Logout and password changes revoke all refresh tokens of the account.
+- GUI login lockout: 3 failed attempts / 10 minutes per IP **and** email → `429`.
 
 Next: [GeoIP & CrowdSec](https://github.com/Inboxes-CIG/Bastion/wiki/EN-GeoIP-and-CrowdSec)

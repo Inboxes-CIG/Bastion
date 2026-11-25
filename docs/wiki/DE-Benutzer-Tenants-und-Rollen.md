@@ -6,15 +6,16 @@ Ein Tenant ist eine Mandantengrenze für Sites, Zertifikate, Templates, GeoIP-Re
 
 - Beim ersten Start wird **Default** angelegt.
 - Nur `superadmin` kann Tenants anlegen/ändern/löschen.
+- Tenants haben `allowed_upstream_hosts`: Hosts, `*.domains` oder CIDRs, die als privates Upstream-Ziel erlaubt sind (SSRF-Allowlist).
 - Der Superadmin hat `tenant_id = NULL` und sieht alles.
-- Andere Benutzer sehen nur Daten ihres Tenants (Listen und Stats sind gefiltert).
+- Andere Benutzer sehen nur Daten ihres Tenants (Listen und Stats sind gefiltert; fremde Ressourcen liefern 404).
 
 ## Rollen
 
 | Rolle | Scope | Rechte (Kurzfassung) |
 |---|---|---|
 | `superadmin` | system | Alles, inkl. Tenants |
-| `tenant_admin` | tenant | Sites, Templates, Zertifikate, Benutzer, GeoIP, IP-Listen, Cache, CrowdSec im eigenen Tenant |
+| `tenant_admin` | tenant | Sites, Templates, Zertifikate, Benutzer, GeoIP, Cache, CrowdSec im eigenen Tenant |
 | `editor` | tenant | Lesen (schreibende API-Endpunkte sind auf superadmin/tenant_admin beschränkt) |
 | `viewer` | tenant | Lesen |
 
@@ -31,6 +32,7 @@ Tabelle `users`:
 | `role_id` | Rolle |
 | `tenant_id` | Mandant (NULL für Superadmin) |
 | `active` | aktiv/inaktiv |
+| `must_change_password` | erzwungene Passwortänderung beim nächsten Login |
 | `mfa_enabled` / `mfa_secret` | TOTP |
 | `last_login` | letzter erfolgreicher Login |
 
@@ -42,15 +44,18 @@ Tabelle `users`:
 DELETE FROM users WHERE email = '<email>';
 ```
 
-- Passwörter werden mit bcrypt gehasht; ein Reset erfolgt durch Setzen eines neuen Passworts in der GUI.
+- Passwörter werden mit bcrypt gehasht. Beim **Anlegen** eines Benutzers ist das Passwort Pflicht; der Benutzer muss es beim ersten Login in einem Pflichtdialog ändern (`must_change_password`).
+- Ein Reset erfolgt durch Setzen eines neuen Passworts in der GUI – das neue Passwort gilt dann wieder als „zu ändern".
+- **Reauth:** Sensible Änderungen (Rolle, E-Mail, Tenant, Status, Passwort) erfordern zusätzlich das Passwort des administrierenden Kontos; ohne oder mit falschem Passwort antwortet die API mit `403`.
 
 ## Sessions und Tokens
 
 - **Access-Token**: JWT, 15 Minuten
-- **Refresh-Token**: JWT, 7 Tage
+- **Refresh-Token**: JWT, 7 Tage, **rotierend** – jedes benutzte Token wird serverseitig gesperrt (Tabelle `refresh_tokens`); Wiederverwendung eines alten Tokens widerruft die ganze Token-Familie (Diebstahlerkennung)
 - **MFA-Token**: JWT, 5 Minuten, nur für den zweiten Login-Schritt
 - Signatur: HS256 mit `auth.jwt_secret`
-- Kein serverseitiges Session-Backend; Logout entfernt das Token im Browser.
+- Logout und Passwort-Änderung widerrufen alle Refresh-Tokens des Kontos; Access-Tokens laufen bis zum Zeitablauf weiter.
+- Login-Lockout: 3 Fehlversuche / 10 Minuten pro IP **und** E-Mail → `429`.
 - Bei kompromittiertem `jwt_secret` alle Benutzer abmelden, indem das Secret in `/etc/bastion/config.yaml` geändert und der Dienst neu gestartet wird.
 
 ## MFA
@@ -61,6 +66,6 @@ Siehe [Zugriff & MFA](https://github.com/Inboxes-CIG/Bastion/wiki/DE-Zugriff-und
 
 - Superadmin: `admin@bastion.local`
 - Passwort: einmalig im Journal (`journalctl -u bastion | grep -A4 'INITIAL SUPERADMIN'`)
-- Nach dem ersten Login Passwort ändern und MFA aktivieren.
+- Nach dem ersten Login erscheint der Pflichtdialog **Passwort ändern erforderlich**; danach MFA aktivieren.
 
 Weiter: [Konfiguration & Betrieb](https://github.com/Inboxes-CIG/Bastion/wiki/DE-Konfiguration-und-Betrieb)

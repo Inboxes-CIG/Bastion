@@ -88,8 +88,9 @@ Jeder GUI-Benutzer kann MFA unter **Settings → Zwei-Faktor-Authentifizierung (
 
 - Standard-TOTP (RFC 6238), 6 Stellen, 30 Sekunden
 - QR-Code + manueller Schlüssel
-- Secret wird mit **AES-256-GCM** verschlüsselt gespeichert (Key aus dem JWT-Secret abgeleitet)
+- Secret wird mit **AES-256-GCM** verschlüsselt gespeichert (Key aus `auth.session_secret`; ältere, mit `jwt_secret` verschlüsselte Secrets bleiben lesbar)
 - Login wird zweistufig: Passwort → `mfa_token` (5 Min.) → Code → Tokens
+- **Deaktivieren** erfordert den aktuellen TOTP-Code **und** das Konto-Passwort
 - Keine Recovery-Codes
 
 **MFA zurücksetzen** (z. B. Gerät verloren):
@@ -101,8 +102,9 @@ UPDATE users SET mfa_enabled = false, mfa_secret = '' WHERE email = '<user-email
 ## Sessions
 
 - Access-Token: 15 Minuten
-- Refresh-Token: 7 Tage
+- Refresh-Token: 7 Tage, rotierend; benutzte Tokens werden serverseitig gesperrt (Tabelle `refresh_tokens`). Wiederverwendung widerruft die ganze Familie.
 - MFA-Token: 5 Minuten
-- Logout entfernt das Token im Browser; es gibt keine serverseitige Token-Sperrliste.
+- Logout und Passwort-Änderung widerrufen alle Refresh-Tokens des Kontos.
+- GUI-Login-Lockout: 3 Fehlversuche / 10 Minuten pro IP **und** E-Mail → `429`.
 
 Weiter: [GeoIP & CrowdSec](https://github.com/Inboxes-CIG/Bastion/wiki/DE-GeoIP-und-CrowdSec)

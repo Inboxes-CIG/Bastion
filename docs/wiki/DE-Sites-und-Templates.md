@@ -93,6 +93,18 @@ Bastion vergleicht den `Host`-Header (ohne Port) case-insensitiv mit `domain` un
 - WebSocket-Upgrades werden automatisch unterstützt.
 - Der Upstream muss vom Bastion-Host erreichbar sein; `127.0.0.1` bezieht sich auf den Bastion-Server.
 
+### SSRF-Schutz (v1.0.6)
+
+Upstream-Ziele werden beim Speichern **und** beim Request geprüft, um Server-side-Request-Forgery zu verhindern:
+
+- Nur die Schemata `http`/`https`; `file:`, `gopher:` usw. werden abgelehnt.
+- Loopback-, Link-Local- (inkl. `169.254.169.254` Cloud-Metadata), CGNAT- (`100.64/10`) und RFC1918-Netze sind standardmäßig blockiert.
+- Hostnamen werden beim Speichern aufgelöst; löst ein Name auf eine private Adresse, wird er abgelehnt.
+- **Ausnahmen:** `security.upstream.allow_private: true` (global), `security.upstream.allowed_hosts` (Hosts/`*.domains`/CIDRs) oder die Tenant-Liste `allowed_upstream_hosts`.
+- Beim Anlegen/Bearbeiten: `400` mit `upstream: …`; im Betrieb: `502` mit `block_reason=ssrf`.
+
+> **Beispiel:** Ein Backend im Netz `10.10.20.0/24` funktioniert nur, wenn dieses CIDR in `security.upstream.allowed_hosts` (oder in der Tenant-Allowlist) steht.
+
 > **HTTPS-Upstream mit selbstsigniertem Zertifikat:** Setze `upstream_insecure_skip_verify` (Site/Location/Template) auf `true`. Damit wird die Zertifikatsprüfung zum Backend deaktiviert. Nur verwenden, wenn der Upstream vertrauenswürdig und das Zertifikat nicht anders lösbar ist.
 
 ## HTTP/2 und HTTP/3
@@ -119,7 +131,7 @@ Admin-Hosts und IP-Adressen werden **immer** auf HTTPS umgeleitet, unabhängig v
 - **Location deaktivieren** → Fallback auf die Site-Konfiguration.
 - Nach Änderungen an Site oder Locations den Cache im Site-Detail manuell leeren, falls nötig (Location-Änderungen tun das automatisch).
 
-## Aktueller Stand: nicht erzwungene Optionen (v1.0.5)
+## Aktueller Stand: nicht erzwungene Optionen (v1.0.6)
 
 Diese Felder sind im Modell und in der GUI vorhanden, werden aber derzeit **nicht** im Request-Pfad angewendet:
 

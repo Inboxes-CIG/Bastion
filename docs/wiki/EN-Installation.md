@@ -66,7 +66,7 @@ journalctl -u bastion | grep -A4 'INITIAL SUPERADMIN'
 - Email: the address provided to the installer (default: `admin@<hostname>` or `admin@bastion.local`)
 - GUI: `https://<hostname>/` or `https://<server-ip>/` (accept the self-signed certificate)
 - The password is generated on first start and printed to the journal if none was supplied
-- Change the password after the first login
+- The first login shows a **mandatory dialog** that forces a password change (`must_change_password`)
 
 ## Upgrade
 
