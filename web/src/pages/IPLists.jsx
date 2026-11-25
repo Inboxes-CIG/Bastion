@@ -62,7 +62,7 @@ export default function IPLists() {
   const [err, setErr] = useState('')
 
   const load = () => api('/iplist').then(d=>setEntries(d.data||[])).catch(e=>setErr(e.message))
-  useEffect(load, [])
+  useEffect(() => { load() }, [])
 
   const add = async (kind, value, note) => {
     await api('/iplist', { method:'POST', body: JSON.stringify({ kind, value, note }) })

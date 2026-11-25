@@ -14,7 +14,7 @@ export default function Tenants() {
   const [form, setForm] = useState(empty)
 
   const load = () => api('/tenants').then(d=>setItems(d.data||[])).catch(e=>setErr(e.message))
-  useEffect(load, [])
+  useEffect(() => { load() }, [])
 
   const openNew = () => { setEditing(null); setForm(empty); setOpen(true) }
   const openEdit = (tn) => { setEditing(tn.id); setForm({ name:tn.name, slug:tn.slug, allowed_upstream_hosts:(tn.allowed_upstream_hosts||[]).join(', ') }); setOpen(true) }

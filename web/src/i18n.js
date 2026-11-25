@@ -22,6 +22,15 @@ const en = {
   'English': 'English',
   'Sprache & Oberfläche': 'Language & interface',
 
+  // Error boundary
+  'Etwas ist schiefgelaufen': 'Something went wrong',
+  'Die Oberfläche konnte nicht geladen werden. Bitte lade die Seite neu.': 'The interface could not be loaded. Please reload the page.',
+  'Diese Seite konnte nicht geladen werden.': 'This page could not be loaded.',
+  'Wechsle die Seite oder versuche es erneut – andere Bereiche funktionieren weiter.': 'Switch to another page or try again – the rest of the app keeps working.',
+  'Erneut versuchen': 'Try again',
+  'Neu laden': 'Reload',
+  'Details': 'Details',
+
   // Common
   'Speichern': 'Save',
   'Gespeichert.': 'Saved.',

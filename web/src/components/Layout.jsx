@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import Icon from './Icon.jsx'
+import ErrorBoundary from './ErrorBoundary.jsx'
 import { me, logout, api, changePassword } from '../api.js'
 import { t } from '../i18n.js'
 
@@ -160,7 +161,7 @@ export default function Layout() {
           </div>
         </header>
         <main className="flex-1 p-4 sm:p-6 overflow-auto">
-          {loading ? <div className="text-sm text-slate-400">…</div> : <Outlet />}
+          {loading ? <div className="text-sm text-slate-400">…</div> : <ErrorBoundary key={loc.pathname}><Outlet /></ErrorBoundary>}
         </main>
       </div>
 

@@ -22,7 +22,7 @@ export default function Sites() {
     api('/sites').then(d => setSites(d.data||[])).catch(e => setErr(e.message))
     api('/templates').then(d => setTemplates(d.data||[])).catch(()=>{})
   }
-  useEffect(load, [])
+  useEffect(() => { load() }, [])
 
   const clearSite = async (e, id) => {
     e.stopPropagation()

@@ -15,7 +15,7 @@ export default function Audit() {
     if (q) p.set('q', q)
     api('/audit?'+p.toString()).then(d=>setItems(d.data||[])).catch(e=>setErr(e.message))
   }
-  useEffect(load, [action, q])
+  useEffect(() => { load() }, [action, q])
 
   if (err) return <Alert variant="error">{err}</Alert>
   if (!items) return <Spinner />
