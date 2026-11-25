@@ -9,7 +9,7 @@ server:
   http_addr: ":80"
   https_addr: ":443"
   api_addr: ":8080"          # API (HTTP, keep internal!)
-  admin_hosts: []            # e.g. ["bastion.example.com"]; empty = localhost + internal fallback
+  admin_hosts: []            # e.g. ["bastion.example.com"]; empty = localhost (IPs are always admin hosts)
   http3: true
 
 database:
@@ -53,7 +53,7 @@ security:
 ### Notes
 
 - **`server.api_addr`** is HTTP and should only be reachable internally. The GUI uses `/api/` through the admin host on 443.
-- **`server.admin_hosts`**: if empty, `localhost` and an internal fallback apply; **every IP address** is also an admin host automatically.
+- **`server.admin_hosts`**: if empty, `localhost` applies; **every IP address** is also an admin host automatically.
 - **`cache.json`** (`/var/lib/bastion/cache.json`) overrides the cache values from `config.yaml` once you change them in the GUI.
 - **`auth.jwt_secret`** protects tokens **and** encrypts MFA secrets. Changing it logs everyone out and makes existing MFA secrets unreadable (MFA must be reset).
 - **Secrets** are also stored in `/etc/bastion/.secrets.env` (0600) by the installer.
@@ -152,7 +152,7 @@ The database is migrated automatically on startup (`AutoMigrate`).
 - Firewall: only 80/443 (TCP) and 443/UDP (HTTP/3)
 - Behind a CDN/proxy: only trust `X-Forwarded-For` from trusted sources (Bastion trusts the header)
 
-## Known limitations (v1.0.4)
+## Known limitations (v1.0.5)
 
 - Some GUI options are not enforced yet: HSTS, compression, max body size, custom headers, force-HTTPS switch, HTTP/2 and WebSocket switches. Details: [Sites & templates](https://github.com/Inboxes-CIG/Bastion/wiki/EN-Sites-and-Templates).
 - Cache is not persistent across restarts.

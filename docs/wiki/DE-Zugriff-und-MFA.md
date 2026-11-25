@@ -15,7 +15,7 @@ Bastion prüft mehrere Schutzschichten in fester Reihenfolge.
 9. **Rate Limit** (Location/Site/Template).
 10. **Cache** / Reverse Proxy zum Upstream.
 
-> **Admin-Hosts:** Jede IP-Adresse als Host sowie alle Einträge in `server.admin_hosts` gelten als Admin-Host. Ist die Liste leer, gelten `localhost` und ein interner Fallback; setze `server.admin_hosts` explizit. Admin-Hosts sind von IP-Listen, CrowdSec, GeoIP und Rate Limit ausgenommen.
+> **Admin-Hosts:** Jede IP-Adresse als Host sowie alle Einträge in `server.admin_hosts` gelten als Admin-Host. Ist die Liste leer, gilt `localhost`; jede IP-Adresse ist zusätzlich automatisch Admin-Host. Setze `server.admin_hosts` für deine GUI-Domain. Admin-Hosts sind von IP-Listen, CrowdSec, GeoIP und Rate Limit ausgenommen.
 
 ## Globale IP-Listen
 

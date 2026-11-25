@@ -15,4 +15,4 @@ curl -fsSL "$URL" -o "$TMP/bastion.tar.gz"
 tar -xzf "$TMP/bastion.tar.gz" -C "$TMP"
 cd "$TMP"
 chmod +x install.sh
-sudo ./install.sh
+sudo ./install.sh "$@"

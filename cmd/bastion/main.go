@@ -6,24 +6,24 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/inboxes-cig/bastion/internal/accesslog"
-	"github.com/inboxes-cig/bastion/internal/autoban"
 	"github.com/inboxes-cig/bastion/internal/api"
-	"os"
-	"os/signal"
-	"syscall"
-	"github.com/inboxes-cig/bastion/internal/cert"
+	"github.com/inboxes-cig/bastion/internal/autoban"
 	"github.com/inboxes-cig/bastion/internal/cache"
+	"github.com/inboxes-cig/bastion/internal/cert"
 	"github.com/inboxes-cig/bastion/internal/config"
 	"github.com/inboxes-cig/bastion/internal/crowdsec"
-	"github.com/google/uuid"
 	"github.com/inboxes-cig/bastion/internal/db"
 	"github.com/inboxes-cig/bastion/internal/geoip"
 	"github.com/inboxes-cig/bastion/internal/iplist"
+	"github.com/inboxes-cig/bastion/internal/proxy"
 	"github.com/inboxes-cig/bastion/internal/ratelimit"
 	"github.com/inboxes-cig/bastion/internal/siteaccess"
 	"github.com/inboxes-cig/bastion/internal/system"
-	"github.com/inboxes-cig/bastion/internal/proxy"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
@@ -44,12 +44,12 @@ func main() {
 	}
 	_ = crowdsec.WriteGoodActors(database, "/var/lib/bastion/good-actors.yaml")
 
-	if pw, err := db.Seed(database); err != nil {
+	if res, err := db.Seed(database); err != nil {
 		log.Fatalf("seed: %v", err)
-	} else if pw != "" {
+	} else if res.Password != "" {
 		log.Printf("=== INITIAL SUPERADMIN CREATED ===")
-		log.Printf("Email: admin@bastion.local")
-		log.Printf("Password: %s", pw)
+		log.Printf("Email: %s", res.Email)
+		log.Printf("Password: %s", res.Password)
 		log.Printf("Please change this password after first login!")
 		log.Printf("===================================")
 	}
@@ -96,7 +96,7 @@ func main() {
 	}
 	adminHosts := cfg.Server.AdminHosts
 	if len(adminHosts) == 0 {
-		adminHosts = []string{"waf.inboxes.de", "localhost"}
+		adminHosts = []string{"localhost"}
 	}
 	bootstrapHosts := append([]string{}, adminHosts...)
 	bootstrapHosts = append(bootstrapHosts, localIPs()...)
@@ -185,9 +185,9 @@ func main() {
 	}()
 
 	router := api.NewRouter(api.Deps{
-		DB:        database,
-		JWTSecret: cfg.Auth.JWTSecret,
-		Certs:     cm,
+		DB:         database,
+		JWTSecret:  cfg.Auth.JWTSecret,
+		Certs:      cm,
 		CrowdSec:   cs,
 		Log:        accessLog,
 		AdminHosts: adminHosts,

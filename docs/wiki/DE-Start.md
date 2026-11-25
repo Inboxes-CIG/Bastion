@@ -66,7 +66,7 @@
 9. Response-Cache (HIT → direkt aus dem RAM).
 10. Sonst Reverse Proxy zum Upstream.
 
-> **Admin-Hosts:** Jede IP-Adresse als Host gilt automatisch als Admin-Host. Zusätzlich gelten `server.admin_hosts`; ist die Liste leer, werden `localhost` und ein interner Fallback verwendet. Admin-Hosts sind von IP-Listen, CrowdSec und GeoIP ausgenommen, damit du dich nicht selbst aussperrst.
+> **Admin-Hosts:** Jede IP-Adresse als Host gilt automatisch als Admin-Host. Zusätzlich gelten `server.admin_hosts`; ist die Liste leer, wird `localhost` verwendet; jede IP-Adresse gilt zusätzlich automatisch als Admin-Host. Setze `server.admin_hosts` für deine GUI-Domain. Admin-Hosts sind von IP-Listen, CrowdSec und GeoIP ausgenommen, damit du dich nicht selbst aussperrst.
 
 ## Weiterlesen
 

@@ -17,6 +17,22 @@ curl -fsSL https://raw.githubusercontent.com/Inboxes-CIG/Bastion/main/get.sh | s
 
 `get.sh` detects the architecture, downloads the latest release tarball and runs `install.sh`.
 
+### Installer options
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Inboxes-CIG/Bastion/main/get.sh | sudo bash -s -- \
+  --hostname bastion.example.com \
+  --admin-email admin@example.com
+```
+
+| Option | Meaning |
+|---|---|
+| `--hostname <fqdn>` | Admin hostname (GUI + self-signed certificate). Asked interactively if omitted; without a terminal `hostname -f` is used. |
+| `--admin-email <email>` | Email of the first superadmin. Asked interactively if omitted; defaults to `admin@<hostname>` or `admin@bastion.local`. |
+| `--admin-password <pass>` | Optional password. If omitted, a password is generated and printed to the journal. |
+
+The options can also be set via `BASTION_HOSTNAME`, `BASTION_ADMIN_EMAIL` and `BASTION_ADMIN_PASSWORD`.
+
 ## Manual install
 
 1. Download the release tarball for your architecture (`bastion_linux_amd64.tar.gz` or `bastion_linux_arm64.tar.gz`).
@@ -34,9 +50,10 @@ sudo ./install.sh
 - Creates the `bastion` system user and `/opt/bastion`, `/etc/bastion`, `/var/lib/bastion`
 - Generates `/etc/bastion/config.yaml` and `/etc/bastion/.secrets.env` (first run only)
 - Installs and enables `bastion.service`
-- Installs CrowdSec, moves its LAPI to `127.0.0.1:8081` and creates the `bastion-bouncer`
+- Moves the CrowdSec LAPI to `127.0.0.1:8081`, restarts CrowdSec and verifies that port **8080** is free for Bastion
+- Creates the `bastion-bouncer`
 - Installs `/usr/local/bin/bastion-geoip-update.sh` and a monthly cron job (`0 3 1 * *`)
-- Creates the superadmin `admin@bastion.local` on first start
+- Asks for hostname and initial admin (or uses the options) and creates the superadmin on first start
 
 ## First login
 
@@ -46,8 +63,9 @@ The initial password is written **once** to the journal:
 journalctl -u bastion | grep -A4 'INITIAL SUPERADMIN'
 ```
 
-- Email: `admin@bastion.local`
-- GUI: `https://<server-ip>/` (accept the self-signed certificate) or via an entry in `server.admin_hosts`
+- Email: the address provided to the installer (default: `admin@<hostname>` or `admin@bastion.local`)
+- GUI: `https://<hostname>/` or `https://<server-ip>/` (accept the self-signed certificate)
+- The password is generated on first start and printed to the journal if none was supplied
 - Change the password after the first login
 
 ## Upgrade

@@ -15,7 +15,7 @@ Bastion checks several protection layers in a fixed order.
 9. **Rate limit** (location/site/template).
 10. **Cache** / reverse proxy to the upstream.
 
-> **Admin hosts:** Any IP address used as a host plus all entries in `server.admin_hosts` are admin hosts. If the list is empty, `localhost` and an internal fallback are used; set `server.admin_hosts` explicitly. Admin hosts are exempt from IP lists, CrowdSec, GeoIP and rate limiting.
+> **Admin hosts:** Any IP address used as a host plus all entries in `server.admin_hosts` are admin hosts. If the list is empty, `localhost` applies; every IP address is also an admin host automatically. Set `server.admin_hosts` for your GUI domain. Admin hosts are exempt from IP lists, CrowdSec, GeoIP and rate limiting.
 
 ## Global IP lists
 

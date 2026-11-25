@@ -70,7 +70,7 @@
 11. Response cache (HIT → served from RAM).
 12. Otherwise reverse proxy to the upstream.
 
-> **Admin hosts:** Any IP address used as a host is automatically an admin host. Additionally, `server.admin_hosts` applies; if empty, `localhost` and an internal fallback are used; set `server.admin_hosts` explicitly. Admin hosts are exempt from IP lists, CrowdSec and GeoIP so you cannot lock yourself out.
+> **Admin hosts:** Any IP address used as a host is automatically an admin host. Additionally, `server.admin_hosts` applies; if empty, `localhost` is used; every IP address is also an admin host automatically. Set `server.admin_hosts` for your GUI domain. Admin hosts are exempt from IP lists, CrowdSec and GeoIP so you cannot lock yourself out.
 
 ## Next
 

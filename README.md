@@ -42,6 +42,22 @@ Full documentation is available in German and English in the [Wiki](https://gith
 curl -fsSL https://raw.githubusercontent.com/Inboxes-CIG/Bastion/main/get.sh | sudo bash
 ```
 
+### Installer options
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Inboxes-CIG/Bastion/main/get.sh | sudo bash -s -- \
+  --hostname bastion.example.com \
+  --admin-email admin@example.com
+```
+
+| Option | Meaning |
+|---|---|
+| `--hostname <fqdn>` | Admin hostname (GUI + self-signed certificate). Asked interactively if omitted; without a terminal `hostname -f` is used. |
+| `--admin-email <email>` | Email of the first superadmin. Asked interactively if omitted. |
+| `--admin-password <pass>` | Optional password. If omitted, a password is generated and printed to the journal. |
+
+The installer moves the CrowdSec LAPI to `127.0.0.1:8081` and verifies that port `8080` is free for Bastion. The initial admin is written to a one-time `/etc/bastion/initial-admin` file and logged by Bastion on first start.
+
 ## Manual install
 
 1. Download the latest release tarball for your architecture (`linux_amd64` or `linux_arm64`).
