@@ -558,7 +558,11 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 	cacheKey := ""
 	reqNoCache := strings.Contains(strings.ToLower(r.Header.Get("Cache-Control")), "no-cache") || strings.EqualFold(r.Header.Get("Pragma"), "no-cache")
 	if s.Cache != nil && cacheEnabled && r.Method == http.MethodGet && r.Header.Get("Authorization") == "" && !reqNoCache {
-		cacheKey = r.Host + " " + r.URL.RequestURI() + " " + r.Header.Get("Accept-Encoding")
+		scheme := "https"
+		if r.TLS == nil {
+			scheme = "http"
+		}
+		cacheKey = scheme + " " + r.Host + " " + r.URL.RequestURI() + " " + r.Header.Get("Accept-Encoding")
 		if e, ok := s.Cache.Get(cacheKey); ok {
 			age := int(time.Since(e.Created).Seconds())
 			if age < 0 {
@@ -596,7 +600,7 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Advertise HTTP/3 for this site (Alt-Svc); clients upgrade on next request.
-	if s.HTTP3Enabled {
+	if s.HTTP3Enabled && r.TLS != nil {
 		h3 := false
 		if loc.HTTP3Enabled != nil {
 			h3 = *loc.HTTP3Enabled
@@ -634,8 +638,12 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 	origDirector := rp.Director
 	rp.Director = func(req *http.Request) {
 		origDirector(req)
-		// Tell the upstream it is behind HTTPS so it generates https URLs.
-		req.Header.Set("X-Forwarded-Proto", "https")
+		// Tell the upstream which scheme the client used.
+		proto := "https"
+		if r.TLS == nil {
+			proto = "http"
+		}
+		req.Header.Set("X-Forwarded-Proto", proto)
 		req.Header.Set("X-Forwarded-Host", origHost)
 		if upstreamHost != "" {
 			req.Host = upstreamHost
@@ -694,9 +702,37 @@ func notModifiedSince(header, lastModified string) bool {
 	return !lm.After(ims)
 }
 
+func (s *Server) forceHTTPS(site *db.Site, tmpl *db.SiteTemplate) bool {
+	if site.ForceHTTPS != nil {
+		return *site.ForceHTTPS
+	}
+	if tmpl != nil && tmpl.ForceHTTPS != nil {
+		return *tmpl.ForceHTTPS
+	}
+	// Safe default: upgrade to HTTPS unless a site explicitly disables it.
+	return true
+}
+
 func (s *Server) Start() error {
 	httpHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		target := "https://" + r.Host + r.URL.RequestURI()
+		host := r.Host
+		// Admin hosts and IP literals are always redirected to HTTPS.
+		if !s.isAdminHost(host) {
+			if site, err := s.findSite(host); err == nil {
+				var tmpl *db.SiteTemplate
+				if site.TemplateID != nil {
+					var t db.SiteTemplate
+					if err := s.DB.First(&t, "id = ?", *site.TemplateID).Error; err == nil {
+						tmpl = &t
+					}
+				}
+				if !s.forceHTTPS(site, tmpl) {
+					s.proxyHandler(w, r)
+					return
+				}
+			}
+		}
+		target := "https://" + host + r.URL.RequestURI()
 		http.Redirect(w, r, target, http.StatusMovedPermanently)
 	})
 	httpSrv := &http.Server{

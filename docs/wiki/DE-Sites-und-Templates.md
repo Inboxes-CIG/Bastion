@@ -106,6 +106,12 @@ Alt-Svc: h3=":443"; ma=86400
 
 UDP/443 muss in der Firewall offen sein.
 
+## Force HTTPS
+
+Ist **Force HTTPS** für eine Site oder ein Template aktiv (Default), werden HTTP-Anfragen mit `301` auf HTTPS umgeleitet. Ist die Option für eine Site explizit deaktiviert, werden HTTP-Anfragen an den Upstream weitergeleitet (`X-Forwarded-Proto: http`).
+
+Admin-Hosts und IP-Adressen werden **immer** auf HTTPS umgeleitet, unabhängig von der Site-Einstellung.
+
 ## Löschen, Deaktivieren und Cache
 
 - **Site löschen** entfernt die Site (Soft-Delete). Der Cache wird **nicht** automatisch geleert.
@@ -119,7 +125,6 @@ Diese Felder sind im Modell und in der GUI vorhanden, werden aber derzeit **nich
 
 | Option | Tatsächliches Verhalten |
 |---|---|
-| `force_https` | HTTP wird **global** für alle Hosts auf HTTPS umgeleitet – der Schalter ändert nichts |
 | `hsts_enabled` / `hsts_max_age` | Kein `Strict-Transport-Security`-Header |
 | `compression_enabled` | Keine automatische Kompression; nur was der Upstream liefert |
 | `max_body_size_mb` | Keine Begrenzung der Request-Größe |
@@ -127,6 +132,6 @@ Diese Felder sind im Modell und in der GUI vorhanden, werden aber derzeit **nich
 | `http2_enabled` | HTTP/2 ist immer aktiv; Schalter ohne Wirkung |
 | `websocket_enabled` | Upgrades funktionieren unabhängig vom Schalter |
 
-**Wirksam sind:** Upstream, Domains, Locations, Templates/Vererbung, Enabled, Auth, Cache, Rate Limit, GeoIP und HTTP/3.
+**Wirksam sind:** Upstream, Domains, Locations, Templates/Vererbung, Enabled, Auth, Cache, Rate Limit, GeoIP, HTTP/3 und Force HTTPS.
 
 Weiter: [Zertifikate](https://github.com/Inboxes-CIG/Bastion/wiki/DE-Zertifikate)
