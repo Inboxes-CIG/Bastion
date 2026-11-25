@@ -13,6 +13,7 @@ type Config struct {
 		HTTPSAddr  string   `yaml:"https_addr"`
 		APIAddr    string   `yaml:"api_addr"`
 		AdminHosts []string `yaml:"admin_hosts"`
+		CORSOrigins []string `yaml:"cors_origins"`
 		HTTP3      *bool    `yaml:"http3"`
 	} `yaml:"server"`
 	Database struct {
@@ -52,6 +53,10 @@ type Config struct {
 			Threshold     int   `yaml:"threshold"`
 			WindowSeconds int   `yaml:"window_seconds"`
 		} `yaml:"auto_ban_404"`
+		Upstream struct {
+			AllowPrivate bool     `yaml:"allow_private"`
+			AllowedHosts []string `yaml:"allowed_hosts"`
+		} `yaml:"upstream"`
 	} `yaml:"security"`
 }
 
@@ -72,7 +77,7 @@ func Load(path string) (*Config, error) {
 		c.Server.HTTPSAddr = ":443"
 	}
 	if c.Server.APIAddr == "" {
-		c.Server.APIAddr = ":8080"
+		c.Server.APIAddr = "127.0.0.1:8080"
 	}
 	if c.Logging.Dir == "" {
 		c.Logging.Dir = "/var/lib/bastion/logs"

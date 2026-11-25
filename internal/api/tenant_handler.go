@@ -46,12 +46,20 @@ func (h *TenantHandler) Get(c *gin.Context) {
 		NotFound(c, "tenant not found")
 		return
 	}
+	if !isSuperadmin(c) {
+		cl := auth.ClaimsFromContext(c)
+		if cl == nil || cl.TenantID == nil || *cl.TenantID != t.ID {
+			NotFound(c, "tenant not found")
+			return
+		}
+	}
 	OK(c, t)
 }
 
 type tenantRequest struct {
-	Name string `json:"name" binding:"required"`
-	Slug string `json:"slug" binding:"required"`
+	Name                 string   `json:"name" binding:"required"`
+	Slug                 string   `json:"slug" binding:"required"`
+	AllowedUpstreamHosts []string `json:"allowed_upstream_hosts"`
 }
 
 func (h *TenantHandler) Create(c *gin.Context) {
@@ -60,7 +68,7 @@ func (h *TenantHandler) Create(c *gin.Context) {
 		BadRequest(c, err.Error())
 		return
 	}
-	t := db.Tenant{Name: req.Name, Slug: req.Slug}
+	t := db.Tenant{Name: req.Name, Slug: req.Slug, AllowedUpstreamHosts: db.StringArray(req.AllowedUpstreamHosts)}
 	if err := h.DB.Create(&t).Error; err != nil {
 		BadRequest(c, err.Error())
 		return
@@ -69,6 +77,9 @@ func (h *TenantHandler) Create(c *gin.Context) {
 }
 
 func (h *TenantHandler) Update(c *gin.Context) {
+	if !requireSuperadmin(c) {
+		return
+	}
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		BadRequest(c, "invalid id")
@@ -86,6 +97,7 @@ func (h *TenantHandler) Update(c *gin.Context) {
 	}
 	t.Name = req.Name
 	t.Slug = req.Slug
+	t.AllowedUpstreamHosts = db.StringArray(req.AllowedUpstreamHosts)
 	if err := h.DB.Save(&t).Error; err != nil {
 		InternalError(c, err.Error())
 		return
@@ -94,6 +106,9 @@ func (h *TenantHandler) Update(c *gin.Context) {
 }
 
 func (h *TenantHandler) Delete(c *gin.Context) {
+	if !requireSuperadmin(c) {
+		return
+	}
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		BadRequest(c, "invalid id")

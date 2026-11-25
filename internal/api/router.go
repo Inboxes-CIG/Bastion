@@ -1,6 +1,10 @@
 package api
 
 import (
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/inboxes-cig/bastion/internal/accesslog"
 	"github.com/inboxes-cig/bastion/internal/audit"
@@ -17,6 +21,7 @@ import (
 type Deps struct {
 	DB         *gorm.DB
 	JWTSecret  string
+	SessionSecret string
 	Certs      *cert.Manager
 	CrowdSec   *crowdsec.Client
 	Log        *accesslog.Logger
@@ -24,24 +29,68 @@ type Deps struct {
 	IPList     *iplist.List
 	Cache      *cache.Cache
 	Access     *siteaccess.Cache
+	CORSOrigins []string
+	AllowPrivateUpstream bool
+	AllowedUpstreamHosts []string
+}
+
+func securityHeaders() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("X-Frame-Options", "DENY")
+		c.Header("Referrer-Policy", "no-referrer")
+		c.Next()
+	}
+}
+
+func cors(origins []string) gin.HandlerFunc {
+	allowed := map[string]bool{}
+	for _, o := range origins {
+		if o = strings.TrimSpace(o); o != "" {
+			allowed[o] = true
+		}
+	}
+	return func(c *gin.Context) {
+		origin := c.GetHeader("Origin")
+		if origin != "" && allowed[origin] {
+			c.Header("Access-Control-Allow-Origin", origin)
+			c.Header("Vary", "Origin")
+			c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type")
+			c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			if c.Request.Method == http.MethodOptions {
+				c.AbortWithStatus(http.StatusNoContent)
+				return
+			}
+		}
+		c.Next()
+	}
 }
 
 func NewRouter(d Deps) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(gin.Logger())
+	r.Use(securityHeaders())
+	r.Use(cors(d.CORSOrigins))
 	r.Use(audit.Middleware(d.DB))
 
-	r.GET("/healthz", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
-
-	authH := &AuthHandler{DB: d.DB, JWTSecret: d.JWTSecret}
+	mfaKey := d.SessionSecret
+	if mfaKey == "" {
+		mfaKey = d.JWTSecret
+	}
+	authH := &AuthHandler{
+		DB:        d.DB,
+		JWTSecret: d.JWTSecret,
+		MFAKey:    mfaKey,
+		Limiter:   auth.NewLoginLimiter(3, 10*time.Minute, 10*time.Minute),
+	}
 	tenantH := &TenantHandler{DB: d.DB}
 	userH := &UserHandler{DB: d.DB}
 	roleH := &RoleHandler{DB: d.DB}
 	certH := &CertHandler{DB: d.DB, Certs: d.Certs}
-	tmplH := &TemplateHandler{DB: d.DB}
-	siteH := &SiteHandler{DB: d.DB}
-	locH := &LocationHandler{DB: d.DB, Cache: d.Cache}
+	tmplH := &TemplateHandler{DB: d.DB, AllowPrivateUpstream: d.AllowPrivateUpstream, AllowedUpstreamHosts: d.AllowedUpstreamHosts}
+	siteH := &SiteHandler{DB: d.DB, AllowPrivateUpstream: d.AllowPrivateUpstream, AllowedUpstreamHosts: d.AllowedUpstreamHosts}
+	locH := &LocationHandler{DB: d.DB, Cache: d.Cache, AllowPrivateUpstream: d.AllowPrivateUpstream, AllowedUpstreamHosts: d.AllowedUpstreamHosts}
 	geoipH := &GeoIPHandler{DB: d.DB}
 	statsH := &StatsHandler{DB: d.DB, Log: d.Log}
 	csH := &CrowdSecHandler{CS: d.CrowdSec}
@@ -51,7 +100,9 @@ func NewRouter(d Deps) *gin.Engine {
 	accessH := &SiteAccessHandler{DB: d.DB, Access: d.Access}
 	adminH := &AdminHandler{DB: d.DB, AdminHosts: d.AdminHosts}
 	iplH := &IPListHandler{DB: d.DB, IPs: d.IPList}
-	cacheH := &CacheHandler{Cache: d.Cache}
+	cacheH := &CacheHandler{DB: d.DB, Cache: d.Cache}
+
+	r.GET("/healthz", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
 
 	v1 := r.Group("/api/v1")
 	{
@@ -61,8 +112,11 @@ func NewRouter(d Deps) *gin.Engine {
 
 		protected := v1.Group("")
 		protected.Use(auth.AuthMiddleware(d.JWTSecret))
+		protected.Use(PasswordChangeGuard(d.DB))
 		{
 			protected.GET("/auth/me", authH.Me)
+			protected.POST("/auth/change-password", authH.ChangePassword)
+			protected.POST("/auth/logout", authH.Logout)
 			protected.POST("/auth/mfa/setup", authH.MFASetup)
 			protected.POST("/auth/mfa/enable", authH.MFAEnable)
 			protected.POST("/auth/mfa/disable", authH.MFADisable)
@@ -74,7 +128,7 @@ func NewRouter(d Deps) *gin.Engine {
 			protected.PUT("/cache/config", auth.RequireRole("superadmin", "tenant_admin"), cacheH.Update)
 			protected.POST("/cache/clear", auth.RequireRole("superadmin", "tenant_admin"), cacheH.Clear)
 
-			protected.GET("/iplist", iplH.List)
+			protected.GET("/iplist", auth.RequireRole("superadmin"), iplH.List)
 			protected.POST("/iplist", auth.RequireRole("superadmin", "tenant_admin"), iplH.Create)
 			protected.PUT("/iplist/:id", auth.RequireRole("superadmin", "tenant_admin"), iplH.Update)
 			protected.DELETE("/iplist/:id", auth.RequireRole("superadmin", "tenant_admin"), iplH.Delete)

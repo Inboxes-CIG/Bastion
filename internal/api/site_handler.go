@@ -13,16 +13,14 @@ import (
 )
 
 type SiteHandler struct {
-	DB *gorm.DB
+	DB                   *gorm.DB
+	AllowPrivateUpstream bool
+	AllowedUpstreamHosts []string
 }
 
 func (h *SiteHandler) List(c *gin.Context) {
-	cl := auth.ClaimsFromContext(c)
 	var sites []db.Site
-	q := h.DB
-	if cl != nil && cl.RoleName != "superadmin" && cl.TenantID != nil {
-		q = q.Where("tenant_id = ?", *cl.TenantID)
-	}
+	q := tenantScoped(c, h.DB, "tenant_id")
 	if err := q.Find(&sites).Error; err != nil {
 		InternalError(c, err.Error())
 		return
@@ -68,8 +66,16 @@ func (h *SiteHandler) Create(c *gin.Context) {
 		return
 	}
 	cl := auth.ClaimsFromContext(c)
+	if cl == nil {
+		Unauthorized(c, "unauthorized")
+		return
+	}
 	tenantID := req.TenantID
-	if cl != nil && cl.RoleName != "superadmin" && cl.TenantID != nil {
+	if cl.RoleName != "superadmin" {
+		if cl.TenantID == nil {
+			Forbidden(c, "forbidden")
+			return
+		}
 		tenantID = cl.TenantID.String()
 	}
 	if tenantID == "" {
@@ -120,6 +126,22 @@ func (h *SiteHandler) Create(c *gin.Context) {
 			site.CertID = &cid
 		}
 	}
+	if site.UpstreamURL != nil && *site.UpstreamURL != "" {
+		privateAllowed, err := validateUpstream(h.DB, tid, *site.UpstreamURL, h.AllowPrivateUpstream, h.AllowedUpstreamHosts)
+		if err != nil {
+			BadRequest(c, "upstream: "+err.Error())
+			return
+		}
+		site.UpstreamAllowPrivate = privateAllowed
+	}
+	if !templateBelongsToTenant(h.DB, site.TemplateID, tid) {
+		BadRequest(c, "template does not belong to the tenant")
+		return
+	}
+	if !certBelongsToTenant(h.DB, site.CertID, tid) {
+		BadRequest(c, "certificate does not belong to the tenant")
+		return
+	}
 	if err := h.DB.Create(&site).Error; err != nil {
 		BadRequest(c, err.Error())
 		return
@@ -138,6 +160,10 @@ func (h *SiteHandler) Get(c *gin.Context) {
 		NotFound(c, "site not found")
 		return
 	}
+	if !canAccessTenant(c, &site.TenantID) {
+		NotFound(c, "site not found")
+		return
+	}
 	OK(c, site)
 }
 
@@ -149,6 +175,10 @@ func (h *SiteHandler) Update(c *gin.Context) {
 	}
 	var site db.Site
 	if err := h.DB.First(&site, "id = ?", id).Error; err != nil {
+		NotFound(c, "site not found")
+		return
+	}
+	if !canAccessTenant(c, &site.TenantID) {
 		NotFound(c, "site not found")
 		return
 	}
@@ -164,7 +194,18 @@ func (h *SiteHandler) Update(c *gin.Context) {
 		site.ExtraDomains = db.StringArray(req.ExtraDomains)
 	}
 	if req.UpstreamURL != nil {
-		site.UpstreamURL = req.UpstreamURL
+		if *req.UpstreamURL == "" {
+			site.UpstreamURL = nil
+			site.UpstreamAllowPrivate = false
+		} else {
+			privateAllowed, err := validateUpstream(h.DB, site.TenantID, *req.UpstreamURL, h.AllowPrivateUpstream, h.AllowedUpstreamHosts)
+			if err != nil {
+				BadRequest(c, "upstream: "+err.Error())
+				return
+			}
+			site.UpstreamURL = req.UpstreamURL
+			site.UpstreamAllowPrivate = privateAllowed
+		}
 	}
 	if req.UpstreamHost != nil {
 		site.UpstreamHost = req.UpstreamHost
@@ -206,6 +247,15 @@ func (h *SiteHandler) Update(c *gin.Context) {
 	site.CacheMaxObjectKB = req.CacheMaxObjectKB
 	site.AuthEnabled = req.AuthEnabled
 
+	if !templateBelongsToTenant(h.DB, site.TemplateID, site.TenantID) {
+		BadRequest(c, "template does not belong to the tenant")
+		return
+	}
+	if !certBelongsToTenant(h.DB, site.CertID, site.TenantID) {
+		BadRequest(c, "certificate does not belong to the tenant")
+		return
+	}
+
 	if err := h.DB.Save(&site).Error; err != nil {
 		InternalError(c, err.Error())
 		return
@@ -220,9 +270,15 @@ func (h *SiteHandler) Delete(c *gin.Context) {
 		return
 	}
 	var site db.Site
-	if err := h.DB.Select("domain").First(&site, "id = ?", id).Error; err == nil {
-		audit.SetDetail(c, fmt.Sprintf("Site %q gelöscht", site.Domain))
+	if err := h.DB.First(&site, "id = ?", id).Error; err != nil {
+		NotFound(c, "site not found")
+		return
 	}
+	if !canAccessTenant(c, &site.TenantID) {
+		NotFound(c, "site not found")
+		return
+	}
+	audit.SetDetail(c, fmt.Sprintf("Site %q gelöscht", site.Domain))
 	if err := h.DB.Delete(&db.Site{}, "id = ?", id).Error; err != nil {
 		InternalError(c, err.Error())
 		return

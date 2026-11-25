@@ -25,6 +25,15 @@ func (h *SiteAccessHandler) scope(c *gin.Context) (uuid.UUID, *uuid.UUID, bool) 
 		BadRequest(c, "invalid site id")
 		return uuid.Nil, nil, false
 	}
+	var site db.Site
+	if err := h.DB.Select("tenant_id").First(&site, "id = ?", sid).Error; err != nil {
+		NotFound(c, "site not found")
+		return uuid.Nil, nil, false
+	}
+	if !canAccessTenant(c, &site.TenantID) {
+		NotFound(c, "site not found")
+		return uuid.Nil, nil, false
+	}
 	raw := c.Param("lid")
 	if raw == "" {
 		return sid, nil, true

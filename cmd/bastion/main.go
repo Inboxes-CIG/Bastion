@@ -6,24 +6,24 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/inboxes-cig/bastion/internal/accesslog"
-	"github.com/inboxes-cig/bastion/internal/api"
 	"github.com/inboxes-cig/bastion/internal/autoban"
-	"github.com/inboxes-cig/bastion/internal/cache"
-	"github.com/inboxes-cig/bastion/internal/cert"
-	"github.com/inboxes-cig/bastion/internal/config"
-	"github.com/inboxes-cig/bastion/internal/crowdsec"
-	"github.com/inboxes-cig/bastion/internal/db"
-	"github.com/inboxes-cig/bastion/internal/geoip"
-	"github.com/inboxes-cig/bastion/internal/iplist"
-	"github.com/inboxes-cig/bastion/internal/proxy"
-	"github.com/inboxes-cig/bastion/internal/ratelimit"
-	"github.com/inboxes-cig/bastion/internal/siteaccess"
-	"github.com/inboxes-cig/bastion/internal/system"
+	"github.com/inboxes-cig/bastion/internal/api"
 	"os"
 	"os/signal"
 	"syscall"
+	"github.com/inboxes-cig/bastion/internal/cert"
+	"github.com/inboxes-cig/bastion/internal/cache"
+	"github.com/inboxes-cig/bastion/internal/config"
+	"github.com/inboxes-cig/bastion/internal/crowdsec"
+	"github.com/google/uuid"
+	"github.com/inboxes-cig/bastion/internal/db"
+	"github.com/inboxes-cig/bastion/internal/geoip"
+	"github.com/inboxes-cig/bastion/internal/iplist"
+	"github.com/inboxes-cig/bastion/internal/ratelimit"
+	"github.com/inboxes-cig/bastion/internal/siteaccess"
+	"github.com/inboxes-cig/bastion/internal/system"
+	"github.com/inboxes-cig/bastion/internal/proxy"
 )
 
 func main() {
@@ -113,6 +113,8 @@ func main() {
 	ps.HTTP3Enabled = h3
 	ps.Access = access
 	ps.Lockout = lockout
+	ps.AllowPrivateUpstream = cfg.Security.Upstream.AllowPrivate
+	ps.AllowedUpstreamHosts = cfg.Security.Upstream.AllowedHosts
 
 	autoBanEnabled := true
 	if cfg.Security.AutoBan404.Enabled != nil {
@@ -185,15 +187,19 @@ func main() {
 	}()
 
 	router := api.NewRouter(api.Deps{
-		DB:         database,
-		JWTSecret:  cfg.Auth.JWTSecret,
-		Certs:      cm,
+		DB:            database,
+		JWTSecret:     cfg.Auth.JWTSecret,
+		SessionSecret: cfg.Auth.SessionSecret,
+		Certs:         cm,
 		CrowdSec:   cs,
 		Log:        accessLog,
 		AdminHosts: adminHosts,
 		IPList:     ipL,
 		Cache:      respCache,
 		Access:     access,
+		CORSOrigins: cfg.Server.CORSOrigins,
+		AllowPrivateUpstream: cfg.Security.Upstream.AllowPrivate,
+		AllowedUpstreamHosts: cfg.Security.Upstream.AllowedHosts,
 	})
 	go func() {
 		sig := make(chan os.Signal, 1)

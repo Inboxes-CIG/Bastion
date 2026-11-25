@@ -26,19 +26,25 @@ type certExpiry struct {
 
 func (h *StatsHandler) Get(c *gin.Context) {
 	cl := auth.ClaimsFromContext(c)
+	super := cl != nil && cl.RoleName == "superadmin"
 
 	scope := func(q *gorm.DB) *gorm.DB {
-		if cl != nil && cl.RoleName != "superadmin" && cl.TenantID != nil {
+		if super {
+			return q
+		}
+		if cl != nil && cl.TenantID != nil {
 			return q.Where("tenant_id = ?", *cl.TenantID)
 		}
-		return q
+		return q.Where("1 = 0")
 	}
 
 	var sites, certs, users, tenants, rules, templates int64
 	scope(h.DB.Model(&db.Site{})).Count(&sites)
 	scope(h.DB.Model(&db.Certificate{})).Count(&certs)
 	scope(h.DB.Model(&db.User{})).Count(&users)
-	h.DB.Model(&db.Tenant{}).Count(&tenants)
+	if super {
+		h.DB.Model(&db.Tenant{}).Count(&tenants)
+	}
 	scope(h.DB.Model(&db.GeoIPRule{})).Count(&rules)
 	scope(h.DB.Model(&db.SiteTemplate{})).Count(&templates)
 
@@ -61,16 +67,30 @@ func (h *StatsHandler) Get(c *gin.Context) {
 		"templates":      templates,
 		"expiring_certs": list,
 	}
+
 	if h.Log != nil {
-		resp["metrics"] = h.Log.Stats()
-		resp["traffic_24h"] = h.Log.StatsFor(time.Now().Add(-24 * time.Hour))
+		if super {
+			resp["metrics"] = h.Log.Stats()
+			resp["traffic_24h"] = h.Log.StatsFor(time.Now().Add(-24 * time.Hour))
+		} else {
+			domains, _ := tenantDomains(c, h.DB)
+			empty := accesslog.Stats{ByStatus: map[string]int64{}, ByReason: map[string]int64{}}
+			if len(domains) > 0 {
+				resp["traffic_24h"] = h.Log.StatsForDomains(time.Now().Add(-24*time.Hour), domains)
+			} else {
+				resp["traffic_24h"] = empty
+			}
+			resp["metrics"] = empty
+		}
 	}
-	resp["system"] = system.Snapshot()
+	if super {
+		resp["system"] = system.Snapshot()
+	}
 	OK(c, resp)
 }
 
 func (h *StatsHandler) LogFiles(c *gin.Context) {
-	if h.Log == nil {
+	if h.Log == nil || !isSuperadmin(c) {
 		OK(c, []accesslog.LogFile{})
 		return
 	}
@@ -92,6 +112,14 @@ func (h *StatsHandler) Logs(c *gin.Context) {
 		Search:       c.Query("q"),
 		ExcludeAdmin: c.Query("hide_admin") == "true",
 	}
+	if !isSuperadmin(c) {
+		domains, ok := tenantDomains(c, h.DB)
+		if !ok || len(domains) == 0 {
+			OK(c, []accesslog.Entry{})
+			return
+		}
+		q.Domains = domains
+	}
 	if b := c.Query("blocked"); b == "true" || b == "false" {
 		v := b == "true"
 		q.Blocked = &v
@@ -107,6 +135,10 @@ func (h *StatsHandler) Logs(c *gin.Context) {
 		}
 	}
 	if file := c.Query("file"); file != "" {
+		if !isSuperadmin(c) {
+			Forbidden(c, "forbidden")
+			return
+		}
 		OK(c, h.Log.QueryFile(file, q))
 		return
 	}

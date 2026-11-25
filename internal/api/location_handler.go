@@ -15,8 +15,10 @@ import (
 )
 
 type LocationHandler struct {
-	DB    *gorm.DB
-	Cache *cache.Cache
+	DB                   *gorm.DB
+	Cache                *cache.Cache
+	AllowPrivateUpstream bool
+	AllowedUpstreamHosts []string
 }
 
 type locationRequest struct {
@@ -71,18 +73,22 @@ func normalizePathPrefix(p string) (string, error) {
 	return p, nil
 }
 
-func (h *LocationHandler) siteID(c *gin.Context) (uuid.UUID, bool) {
+func (h *LocationHandler) siteID(c *gin.Context) (uuid.UUID, uuid.UUID, bool) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		BadRequest(c, "invalid site id")
-		return uuid.Nil, false
+		return uuid.Nil, uuid.Nil, false
 	}
 	var site db.Site
-	if err := h.DB.Select("id").First(&site, "id = ?", id).Error; err != nil {
+	if err := h.DB.Select("id, tenant_id").First(&site, "id = ?", id).Error; err != nil {
 		NotFound(c, "site not found")
-		return uuid.Nil, false
+		return uuid.Nil, uuid.Nil, false
 	}
-	return id, true
+	if !canAccessTenant(c, &site.TenantID) {
+		NotFound(c, "site not found")
+		return uuid.Nil, uuid.Nil, false
+	}
+	return id, site.TenantID, true
 }
 
 func (h *LocationHandler) clearCache(siteID uuid.UUID) {
@@ -92,7 +98,7 @@ func (h *LocationHandler) clearCache(siteID uuid.UUID) {
 }
 
 func (h *LocationHandler) List(c *gin.Context) {
-	siteID, ok := h.siteID(c)
+	siteID, _, ok := h.siteID(c)
 	if !ok {
 		return
 	}
@@ -105,7 +111,7 @@ func (h *LocationHandler) List(c *gin.Context) {
 }
 
 func (h *LocationHandler) Create(c *gin.Context) {
-	siteID, ok := h.siteID(c)
+	siteID, tenantID, ok := h.siteID(c)
 	if !ok {
 		return
 	}
@@ -135,6 +141,14 @@ func (h *LocationHandler) Create(c *gin.Context) {
 		BadRequest(c, "ip_rules_mode must be inherit or own")
 		return
 	}
+	privateAllowed := false
+	if req.UpstreamURL != nil && *req.UpstreamURL != "" {
+		privateAllowed, err = validateUpstream(h.DB, tenantID, *req.UpstreamURL, h.AllowPrivateUpstream, h.AllowedUpstreamHosts)
+		if err != nil {
+			BadRequest(c, "upstream: "+err.Error())
+			return
+		}
+	}
 	loc := db.SiteLocation{
 		SiteID:                     siteID,
 		PathPrefix:                 prefix,
@@ -142,6 +156,7 @@ func (h *LocationHandler) Create(c *gin.Context) {
 		UpstreamURL:                req.UpstreamURL,
 		UpstreamHost:               req.UpstreamHost,
 		UpstreamInsecureSkipVerify: req.UpstreamInsecureSkipVerify,
+		UpstreamAllowPrivate:       privateAllowed,
 		GeoIPEnabled:               req.GeoIPEnabled,
 		GeoIPMode:                  req.GeoIPMode,
 		GeoIPCountries:             toStrArray(req.GeoIPCountries),
@@ -167,7 +182,7 @@ func (h *LocationHandler) Create(c *gin.Context) {
 }
 
 func (h *LocationHandler) Update(c *gin.Context) {
-	siteID, ok := h.siteID(c)
+	siteID, tenantID, ok := h.siteID(c)
 	if !ok {
 		return
 	}
@@ -219,7 +234,20 @@ func (h *LocationHandler) Update(c *gin.Context) {
 		}
 		loc.IPRulesMode = mode
 	}
-	loc.UpstreamURL = req.UpstreamURL
+	if req.UpstreamURL != nil {
+		if *req.UpstreamURL == "" {
+			loc.UpstreamURL = nil
+			loc.UpstreamAllowPrivate = false
+		} else {
+			privateAllowed, err := validateUpstream(h.DB, tenantID, *req.UpstreamURL, h.AllowPrivateUpstream, h.AllowedUpstreamHosts)
+			if err != nil {
+				BadRequest(c, "upstream: "+err.Error())
+				return
+			}
+			loc.UpstreamURL = req.UpstreamURL
+			loc.UpstreamAllowPrivate = privateAllowed
+		}
+	}
 	loc.UpstreamHost = req.UpstreamHost
 	loc.UpstreamInsecureSkipVerify = req.UpstreamInsecureSkipVerify
 	loc.GeoIPEnabled = req.GeoIPEnabled
@@ -242,7 +270,7 @@ func (h *LocationHandler) Update(c *gin.Context) {
 }
 
 func (h *LocationHandler) Delete(c *gin.Context) {
-	siteID, ok := h.siteID(c)
+	siteID, _, ok := h.siteID(c)
 	if !ok {
 		return
 	}

@@ -314,6 +314,7 @@ Type=simple
 User=bastion
 Group=bastion
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=GIN_MODE=release
 ExecStart=/opt/bastion/bin/bastion
 Restart=on-failure
 RestartSec=5

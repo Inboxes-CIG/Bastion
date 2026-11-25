@@ -17,6 +17,9 @@ type IPListHandler struct {
 }
 
 func (h *IPListHandler) List(c *gin.Context) {
+	if !requireSuperadmin(c) {
+		return
+	}
 	var entries []db.IPListEntry
 	if err := h.DB.Order("created_at DESC").Find(&entries).Error; err != nil {
 		InternalError(c, err.Error())
@@ -32,6 +35,9 @@ type ipListRequest struct {
 }
 
 func (h *IPListHandler) Create(c *gin.Context) {
+	if !requireAnyRole(c, "superadmin", "tenant_admin") {
+		return
+	}
 	var req ipListRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		BadRequest(c, err.Error())
@@ -57,6 +63,9 @@ func (h *IPListHandler) Create(c *gin.Context) {
 }
 
 func (h *IPListHandler) Update(c *gin.Context) {
+	if !requireAnyRole(c, "superadmin", "tenant_admin") {
+		return
+	}
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		BadRequest(c, "invalid id")
@@ -94,6 +103,9 @@ func (h *IPListHandler) Update(c *gin.Context) {
 }
 
 func (h *IPListHandler) Delete(c *gin.Context) {
+	if !requireAnyRole(c, "superadmin", "tenant_admin") {
+		return
+	}
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		BadRequest(c, "invalid id")

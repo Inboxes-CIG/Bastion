@@ -9,10 +9,11 @@ import (
 )
 
 type Claims struct {
-	UserID   uuid.UUID  `json:"uid"`
-	TenantID *uuid.UUID `json:"tid,omitempty"`
-	RoleID   uuid.UUID  `json:"rid"`
-	RoleName string     `json:"role"`
+	UserID    uuid.UUID  `json:"uid"`
+	TenantID  *uuid.UUID `json:"tid,omitempty"`
+	RoleID    uuid.UUID  `json:"rid"`
+	RoleName  string     `json:"role"`
+	TokenType string     `json:"typ,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -20,15 +21,17 @@ type TokenPair struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 	ExpiresIn    int64  `json:"expires_in"`
+	RefreshJTI   string `json:"-"`
 }
 
 func GenerateTokens(jwtSecret string, userID uuid.UUID, tenantID *uuid.UUID, roleID uuid.UUID, roleName string) (*TokenPair, error) {
 	now := time.Now()
 	accessClaims := Claims{
-		UserID:   userID,
-		TenantID: tenantID,
-		RoleID:   roleID,
-		RoleName: roleName,
+		UserID:    userID,
+		TenantID:  tenantID,
+		RoleID:    roleID,
+		RoleName:  roleName,
+		TokenType: "access",
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(15 * time.Minute)),
 			IssuedAt:  jwt.NewNumericDate(now),
@@ -41,17 +44,19 @@ func GenerateTokens(jwtSecret string, userID uuid.UUID, tenantID *uuid.UUID, rol
 		return nil, fmt.Errorf("sign access: %w", err)
 	}
 
+	jti := uuid.New().String()
 	refreshClaims := Claims{
-		UserID:   userID,
-		TenantID: tenantID,
-		RoleID:   roleID,
-		RoleName: roleName,
+		UserID:    userID,
+		TenantID:  tenantID,
+		RoleID:    roleID,
+		RoleName:  roleName,
+		TokenType: "refresh",
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(7 * 24 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
 			Subject:   userID.String(),
-			ID:        uuid.New().String(),
+			ID:        jti,
 		},
 	}
 	refreshToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims).SignedString([]byte(jwtSecret))
@@ -63,6 +68,7 @@ func GenerateTokens(jwtSecret string, userID uuid.UUID, tenantID *uuid.UUID, rol
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		ExpiresIn:    900,
+		RefreshJTI:   jti,
 	}, nil
 }
 
@@ -79,6 +85,28 @@ func ValidateToken(jwtSecret, tokenStr string) (*Claims, error) {
 	claims, ok := token.Claims.(*Claims)
 	if !ok || !token.Valid {
 		return nil, fmt.Errorf("invalid token")
+	}
+	return claims, nil
+}
+
+func ValidateAccessToken(jwtSecret, tokenStr string) (*Claims, error) {
+	claims, err := ValidateToken(jwtSecret, tokenStr)
+	if err != nil {
+		return nil, err
+	}
+	if claims.TokenType != "access" {
+		return nil, fmt.Errorf("not an access token")
+	}
+	return claims, nil
+}
+
+func ValidateRefreshToken(jwtSecret, tokenStr string) (*Claims, error) {
+	claims, err := ValidateToken(jwtSecret, tokenStr)
+	if err != nil {
+		return nil, err
+	}
+	if claims.TokenType != "refresh" || claims.ID == "" {
+		return nil, fmt.Errorf("not a refresh token")
 	}
 	return claims, nil
 }

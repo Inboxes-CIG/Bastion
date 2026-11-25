@@ -13,16 +13,14 @@ import (
 )
 
 type TemplateHandler struct {
-	DB *gorm.DB
+	DB                   *gorm.DB
+	AllowPrivateUpstream bool
+	AllowedUpstreamHosts []string
 }
 
 func (h *TemplateHandler) List(c *gin.Context) {
-	cl := auth.ClaimsFromContext(c)
 	var templates []db.SiteTemplate
-	q := h.DB
-	if cl != nil && cl.RoleName != "superadmin" && cl.TenantID != nil {
-		q = q.Where("tenant_id = ?", *cl.TenantID)
-	}
+	q := tenantScoped(c, h.DB, "tenant_id")
 	if err := q.Find(&templates).Error; err != nil {
 		InternalError(c, err.Error())
 		return
@@ -38,6 +36,10 @@ func (h *TemplateHandler) Get(c *gin.Context) {
 	}
 	var t db.SiteTemplate
 	if err := h.DB.First(&t, "id = ?", id).Error; err != nil {
+		NotFound(c, "template not found")
+		return
+	}
+	if !canAccessTenant(c, &t.TenantID) {
 		NotFound(c, "template not found")
 		return
 	}
@@ -77,8 +79,16 @@ func (h *TemplateHandler) Create(c *gin.Context) {
 		return
 	}
 	cl := auth.ClaimsFromContext(c)
+	if cl == nil {
+		Unauthorized(c, "unauthorized")
+		return
+	}
 	tenantID := req.TenantID
-	if cl != nil && cl.RoleName != "superadmin" && cl.TenantID != nil {
+	if cl.RoleName != "superadmin" {
+		if cl.TenantID == nil {
+			Forbidden(c, "forbidden")
+			return
+		}
 		tenantID = cl.TenantID.String()
 	}
 	if tenantID == "" {
@@ -90,6 +100,14 @@ func (h *TemplateHandler) Create(c *gin.Context) {
 		BadRequest(c, "invalid tenant_id")
 		return
 	}
+	privateAllowed := false
+	if req.UpstreamURL != nil && *req.UpstreamURL != "" {
+		privateAllowed, err = validateUpstream(h.DB, tid, *req.UpstreamURL, h.AllowPrivateUpstream, h.AllowedUpstreamHosts)
+		if err != nil {
+			BadRequest(c, "upstream: "+err.Error())
+			return
+		}
+	}
 	t := db.SiteTemplate{
 		TenantID:                   tid,
 		Name:                       req.Name,
@@ -97,6 +115,7 @@ func (h *TemplateHandler) Create(c *gin.Context) {
 		UpstreamURL:                req.UpstreamURL,
 		UpstreamHost:               req.UpstreamHost,
 		UpstreamInsecureSkipVerify: req.UpstreamInsecureSkipVerify,
+		UpstreamAllowPrivate:       privateAllowed,
 		GeoIPEnabled:               req.GeoIPEnabled,
 		GeoIPMode:                  req.GeoIPMode,
 		GeoIPCountries:             db.StringArray(req.GeoIPCountries),
@@ -133,6 +152,10 @@ func (h *TemplateHandler) Update(c *gin.Context) {
 		NotFound(c, "template not found")
 		return
 	}
+	if !canAccessTenant(c, &t.TenantID) {
+		NotFound(c, "template not found")
+		return
+	}
 	var req templateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		BadRequest(c, err.Error())
@@ -143,7 +166,20 @@ func (h *TemplateHandler) Update(c *gin.Context) {
 	}
 	t.Description = req.Description
 	// Update pointer fields (nil means clear override -> inherit nothing, template always defines)
-	t.UpstreamURL = req.UpstreamURL
+	if req.UpstreamURL != nil {
+		if *req.UpstreamURL == "" {
+			t.UpstreamURL = nil
+			t.UpstreamAllowPrivate = false
+		} else {
+			privateAllowed, err := validateUpstream(h.DB, t.TenantID, *req.UpstreamURL, h.AllowPrivateUpstream, h.AllowedUpstreamHosts)
+			if err != nil {
+				BadRequest(c, "upstream: "+err.Error())
+				return
+			}
+			t.UpstreamURL = req.UpstreamURL
+			t.UpstreamAllowPrivate = privateAllowed
+		}
+	}
 	t.UpstreamHost = req.UpstreamHost
 	t.UpstreamInsecureSkipVerify = req.UpstreamInsecureSkipVerify
 	t.GeoIPEnabled = req.GeoIPEnabled
@@ -179,9 +215,15 @@ func (h *TemplateHandler) Delete(c *gin.Context) {
 	}
 	// Detach sites from this template
 	var tpl db.SiteTemplate
-	if err := h.DB.Select("name").First(&tpl, "id = ?", id).Error; err == nil {
-		audit.SetDetail(c, fmt.Sprintf("Template %q gelöscht", tpl.Name))
+	if err := h.DB.First(&tpl, "id = ?", id).Error; err != nil {
+		NotFound(c, "template not found")
+		return
 	}
+	if !canAccessTenant(c, &tpl.TenantID) {
+		NotFound(c, "template not found")
+		return
+	}
+	audit.SetDetail(c, fmt.Sprintf("Template %q gelöscht", tpl.Name))
 	h.DB.Model(&db.Site{}).Where("template_id = ?", id).Update("template_id", nil)
 	if err := h.DB.Delete(&db.SiteTemplate{}, "id = ?", id).Error; err != nil {
 		InternalError(c, err.Error())

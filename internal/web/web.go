@@ -38,6 +38,8 @@ func Handler() http.Handler {
 				f.Close()
 				if statErr == nil && !st.IsDir() {
 					w.Header().Set("X-Content-Type-Options", "nosniff")
+					w.Header().Set("X-Frame-Options", "DENY")
+					w.Header().Set("Referrer-Policy", "no-referrer")
 					switch {
 					case p == "index.html":
 						w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
@@ -64,6 +66,8 @@ func Handler() http.Handler {
 		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 		w.Header().Set("Pragma", "no-cache")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(indexHTML)
 	})

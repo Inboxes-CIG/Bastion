@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import Icon from './Icon.jsx'
-import { me, logout, api } from '../api.js'
+import { me, logout, api, changePassword } from '../api.js'
 import { t } from '../i18n.js'
 
 const NAV = [
@@ -33,15 +33,62 @@ function titleFor(path) {
   return 'Bastion'
 }
 
+function ForceChangePassword() {
+  const [cur, setCur] = useState('')
+  const [nw, setNw] = useState('')
+  const [nw2, setNw2] = useState('')
+  const [err, setErr] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const submit = async (e) => {
+    e.preventDefault()
+    setErr('')
+    if (nw.length < 8) { setErr(t('Das neue Passwort muss mindestens 8 Zeichen haben.')); return }
+    if (nw !== nw2) { setErr(t('Die Passwörter stimmen nicht überein.')); return }
+    setBusy(true)
+    try {
+      await changePassword(cur, nw)
+      window.location.reload()
+    } catch (e) { setErr(e.message) } finally { setBusy(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <form onSubmit={submit} className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4">
+        <div>
+          <h2 className="text-lg font-bold text-slate-800">{t('Passwort ändern erforderlich')}</h2>
+          <p className="text-sm text-slate-500 mt-1">{t('Aus Sicherheitsgründen musst du dein Passwort vor der ersten Nutzung ändern.')}</p>
+        </div>
+        {err && <div className="rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2">{err}</div>}
+        <label className="block text-sm font-medium text-slate-700">
+          {t('Aktuelles Passwort')}
+          <input type="password" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" value={cur} onChange={e=>setCur(e.target.value)} required />
+        </label>
+        <label className="block text-sm font-medium text-slate-700">
+          {t('Neues Passwort')}
+          <input type="password" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" value={nw} onChange={e=>setNw(e.target.value)} required />
+        </label>
+        <label className="block text-sm font-medium text-slate-700">
+          {t('Neues Passwort wiederholen')}
+          <input type="password" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" value={nw2} onChange={e=>setNw2(e.target.value)} required />
+        </label>
+        <div className="flex items-center justify-between">
+          <button type="button" onClick={logout} className="text-sm text-slate-500 hover:text-slate-700">{t('Abmelden')}</button>
+          <button disabled={busy} className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-medium rounded-lg px-4 py-2 text-sm">{busy ? t('Speichern...') : t('Speichern')}</button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
 export default function Layout() {
   const [user, setUser] = useState(null)
   const [ver, setVer] = useState(null)
   const [open, setOpen] = useState(false)
   const loc = useLocation()
-  const nav = useNavigate()
 
   useEffect(() => {
-    me().then(d => setUser(d.data)).catch(() => nav('/login'))
+    me().then(d => setUser(d.data)).catch(() => { window.location.href = '/login' })
     api('/version').then(d => setVer(d.data)).catch(() => {})
   }, [])
 
@@ -49,6 +96,8 @@ export default function Layout() {
     `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
       isActive ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
     }`
+
+  const loading = !user
 
   return (
     <div className="min-h-screen flex bg-slate-100">
@@ -111,9 +160,11 @@ export default function Layout() {
           </div>
         </header>
         <main className="flex-1 p-4 sm:p-6 overflow-auto">
-          <Outlet />
+          {loading ? <div className="text-sm text-slate-400">…</div> : <Outlet />}
         </main>
       </div>
+
+      {user && user.must_change_password && <ForceChangePassword />}
     </div>
   )
 }

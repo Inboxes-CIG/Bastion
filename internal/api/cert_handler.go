@@ -25,12 +25,8 @@ type certRequest struct {
 }
 
 func (h *CertHandler) List(c *gin.Context) {
-	cl := auth.ClaimsFromContext(c)
 	var certs []db.Certificate
-	q := h.DB.Select("id, tenant_id, domain, issuer, not_before, not_after, auto_renew, source, created_at")
-	if cl != nil && cl.RoleName != "superadmin" && cl.TenantID != nil {
-		q = q.Where("tenant_id = ?", *cl.TenantID)
-	}
+	q := tenantScoped(c, h.DB.Select("id, tenant_id, domain, issuer, not_before, not_after, auto_renew, source, created_at"), "tenant_id")
 	if err := q.Find(&certs).Error; err != nil {
 		InternalError(c, err.Error())
 		return
@@ -43,6 +39,18 @@ func (h *CertHandler) Upload(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		BadRequest(c, err.Error())
 		return
+	}
+	cl := auth.ClaimsFromContext(c)
+	if cl == nil {
+		Unauthorized(c, "unauthorized")
+		return
+	}
+	if cl.RoleName != "superadmin" {
+		if cl.TenantID == nil {
+			Forbidden(c, "forbidden")
+			return
+		}
+		req.TenantID = cl.TenantID.String()
 	}
 	if err := h.Certs.AddManual(req.Domain, req.CertPEM, req.KeyPEM, req.TenantID); err != nil {
 		BadRequest(c, err.Error())
@@ -66,8 +74,16 @@ func (h *CertHandler) Issue(c *gin.Context) {
 		return
 	}
 	cl := auth.ClaimsFromContext(c)
+	if cl == nil {
+		Unauthorized(c, "unauthorized")
+		return
+	}
 	tenantID := req.TenantID
-	if cl != nil && cl.RoleName != "superadmin" && cl.TenantID != nil {
+	if cl.RoleName != "superadmin" {
+		if cl.TenantID == nil {
+			Forbidden(c, "forbidden")
+			return
+		}
 		tenantID = cl.TenantID.String()
 	}
 
@@ -76,6 +92,10 @@ func (h *CertHandler) Issue(c *gin.Context) {
 	if siteID != "" {
 		var site db.Site
 		if err := h.DB.First(&site, "id = ?", siteID).Error; err != nil {
+			NotFound(c, "site not found")
+			return
+		}
+		if !canAccessTenant(c, &site.TenantID) {
 			NotFound(c, "site not found")
 			return
 		}
@@ -130,6 +150,10 @@ func (h *CertHandler) Delete(c *gin.Context) {
 		NotFound(c, "cert not found")
 		return
 	}
+	if !canAccessTenant(c, &cert.TenantID) {
+		NotFound(c, "cert not found")
+		return
+	}
 	if err := h.Certs.DeleteByID(cert.ID); err != nil {
 		InternalError(c, err.Error())
 		return
@@ -146,6 +170,10 @@ func (h *CertHandler) Get(c *gin.Context) {
 	}
 	var cert db.Certificate
 	if err := h.DB.Select("id, tenant_id, domain, issuer, not_before, not_after, auto_renew, source, created_at").First(&cert, "id = ?", id).Error; err != nil {
+		NotFound(c, "cert not found")
+		return
+	}
+	if !canAccessTenant(c, &cert.TenantID) {
 		NotFound(c, "cert not found")
 		return
 	}

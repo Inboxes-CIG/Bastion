@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { login, loginMFA } from '../api.js'
+import { login, loginMFA, setTokens, setUser } from '../api.js'
 import Icon from '../components/Icon.jsx'
 import { t, currentLang, setLang, LANGS } from '../i18n.js'
 
@@ -19,7 +19,8 @@ export default function Login() {
     try {
       if (mfaToken) {
         const d = await loginMFA(mfaToken, code)
-        localStorage.setItem('token', d.data.tokens.access_token)
+        setTokens(d.data)
+        if (d.data.user) setUser(d.data.user)
         nav('/')
         return
       }
@@ -29,7 +30,8 @@ export default function Login() {
         setCode('')
         return
       }
-      localStorage.setItem('token', d.data.tokens.access_token)
+      setTokens(d.data)
+      if (d.data.user) setUser(d.data.user)
       nav('/')
     } catch (e) { setErr(e.message) } finally { setBusy(false) }
   }

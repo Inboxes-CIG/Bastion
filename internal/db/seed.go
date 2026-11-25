@@ -119,11 +119,12 @@ func Seed(d *gorm.DB) (SeedResult, error) {
 				return SeedResult{}, herr
 			}
 			u := User{
-				TenantID:     nil,
-				Email:        email,
-				PasswordHash: hash,
-				RoleID:       roleIDs["superadmin"],
-				Active:       true,
+				TenantID:          nil,
+				Email:             email,
+				PasswordHash:      hash,
+				RoleID:            roleIDs["superadmin"],
+				Active:            true,
+				MustChangePassword: true,
 			}
 			if cerr := d.Create(&u).Error; cerr != nil {
 				return SeedResult{}, fmt.Errorf("create superadmin %s: %w", email, cerr)
@@ -142,10 +143,11 @@ func Seed(d *gorm.DB) (SeedResult, error) {
 					return SeedResult{}, herr
 				}
 				if uerr := d.Unscoped().Model(&existing).Updates(map[string]interface{}{
-					"deleted_at":    nil,
-					"password_hash": hash,
-					"role_id":       roleIDs["superadmin"],
-					"active":        true,
+					"deleted_at":           nil,
+					"password_hash":        hash,
+					"role_id":              roleIDs["superadmin"],
+					"active":               true,
+					"must_change_password": true,
 				}).Error; uerr != nil {
 					return SeedResult{}, fmt.Errorf("restore superadmin %s: %w", email, uerr)
 				}
@@ -180,13 +182,14 @@ func Seed(d *gorm.DB) (SeedResult, error) {
 		if herr != nil {
 			return SeedResult{}, herr
 		}
-		u := User{
-			TenantID:     nil,
-			Email:        "admin@bastion.local",
-			PasswordHash: hash,
-			RoleID:       roleIDs["superadmin"],
-			Active:       true,
-		}
+			u := User{
+				TenantID:          nil,
+				Email:             "admin@bastion.local",
+				PasswordHash:      hash,
+				RoleID:            roleIDs["superadmin"],
+				Active:            true,
+				MustChangePassword: true,
+			}
 		if cerr := d.Create(&u).Error; cerr != nil {
 			return SeedResult{}, fmt.Errorf("create superadmin: %w", cerr)
 		}

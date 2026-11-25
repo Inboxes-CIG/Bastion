@@ -2,10 +2,14 @@ package api
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/inboxes-cig/bastion/internal/cache"
+	"github.com/inboxes-cig/bastion/internal/db"
+	"gorm.io/gorm"
 )
 
 type CacheHandler struct {
+	DB    *gorm.DB
 	Cache *cache.Cache
 }
 
@@ -46,10 +50,28 @@ func (h *CacheHandler) Clear(c *gin.Context) {
 	if req.SiteID == "" {
 		req.SiteID = c.Query("site_id")
 	}
-	if req.SiteID != "" {
-		h.Cache.ClearSite(req.SiteID)
-	} else {
+	if req.SiteID == "" {
+		if !requireSuperadmin(c) {
+			return
+		}
 		h.Cache.Clear()
+		OK(c, gin.H{"cleared": true})
+		return
 	}
-	OK(c, gin.H{"cleared": true, "site_id": req.SiteID})
+	sid, err := uuid.Parse(req.SiteID)
+	if err != nil {
+		BadRequest(c, "invalid site_id")
+		return
+	}
+	var site db.Site
+	if err := h.DB.Select("tenant_id").First(&site, "id = ?", sid).Error; err != nil {
+		NotFound(c, "site not found")
+		return
+	}
+	if !canAccessTenant(c, &site.TenantID) {
+		NotFound(c, "site not found")
+		return
+	}
+	h.Cache.ClearSite(sid.String())
+	OK(c, gin.H{"cleared": true, "site_id": sid.String()})
 }

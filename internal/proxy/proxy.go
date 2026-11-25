@@ -22,6 +22,7 @@ import (
 	"github.com/inboxes-cig/bastion/internal/db"
 	"github.com/inboxes-cig/bastion/internal/geoip"
 	"github.com/inboxes-cig/bastion/internal/iplist"
+	"github.com/inboxes-cig/bastion/internal/netguard"
 	"github.com/inboxes-cig/bastion/internal/ratelimit"
 	"github.com/inboxes-cig/bastion/internal/siteaccess"
 	"github.com/inboxes-cig/bastion/internal/web"
@@ -41,11 +42,13 @@ type Server struct {
 	HTTP3Enabled      bool
 	Access            *siteaccess.Cache
 	Lockout           *siteaccess.Lockout
-	AutoBan           *autoban.Detector
-	InsecureTransport *http.Transport
-	HTTPAddr          string
-	HTTPSAddr         string
-	AdminHosts        map[string]bool
+	AutoBan            *autoban.Detector
+	InsecureTransport  *http.Transport
+	HTTPAddr           string
+	HTTPSAddr          string
+	AdminHosts         map[string]bool
+	AllowPrivateUpstream bool
+	AllowedUpstreamHosts []string
 }
 
 func NewServer(db *gorm.DB, cm *cert.Manager, g *geoip.Lookup, cs *crowdsec.Client, lg *accesslog.Logger, il *iplist.List, rl *ratelimit.Limiter, ca *cache.Cache, httpAddr, httpsAddr string, adminHosts []string) *Server {
@@ -562,7 +565,7 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 		if r.TLS == nil {
 			scheme = "http"
 		}
-		cacheKey = scheme + " " + r.Host + " " + r.URL.RequestURI() + " " + r.Header.Get("Accept-Encoding")
+		cacheKey = scheme + " " + site.TenantID.String() + " " + r.Host + " " + r.URL.RequestURI() + " " + r.Header.Get("Accept-Encoding")
 		if e, ok := s.Cache.Get(cacheKey); ok {
 			age := int(time.Since(e.Created).Seconds())
 			if age < 0 {
@@ -617,6 +620,18 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 	upstream, err := url.Parse(upstreamURL)
 	if err != nil {
 		entry.BlockReason = "bad_upstream"
+		sw.WriteHeader(http.StatusBadGateway)
+		return
+	}
+
+	allowPrivate := s.AllowPrivateUpstream
+	if loc.UpstreamAllowPrivate || site.UpstreamAllowPrivate || (tmpl != nil && tmpl.UpstreamAllowPrivate) {
+		allowPrivate = true
+	}
+	if err := netguard.CheckLiteral(upstreamURL, allowPrivate, s.AllowedUpstreamHosts); err != nil {
+		entry.Blocked = true
+		entry.BlockReason = "ssrf"
+		log.Printf("upstream blocked for %s: %v", host, err)
 		sw.WriteHeader(http.StatusBadGateway)
 		return
 	}

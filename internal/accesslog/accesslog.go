@@ -64,6 +64,7 @@ type Query struct {
 	Search  string
 	Limit        int
 	ExcludeAdmin bool
+	Domains map[string]bool
 }
 
 type LogFile struct {
@@ -479,6 +480,9 @@ func match(e Entry, q Query) bool {
 	if q.ExcludeAdmin && e.Admin {
 		return false
 	}
+	if q.Domains != nil && !q.Domains[e.Domain] {
+		return false
+	}
 	if q.Site != "" && !strings.EqualFold(e.Domain, q.Site) && !strings.EqualFold(e.Host, q.Site) {
 		return false
 	}
@@ -501,8 +505,18 @@ func match(e Entry, q Query) bool {
 
 // StatsFor aggregates persisted log entries since the given time (max 30s cache).
 func (l *Logger) StatsFor(since time.Time) Stats {
+	return l.statsFor(since, nil, true)
+}
+
+// StatsForDomains aggregates only entries for the given domains. Used for
+// tenant-scoped dashboard statistics; not cached to avoid cross-tenant leaks.
+func (l *Logger) StatsForDomains(since time.Time, domains map[string]bool) Stats {
+	return l.statsFor(since, domains, false)
+}
+
+func (l *Logger) statsFor(since time.Time, domains map[string]bool, cache bool) Stats {
 	l.mu.Lock()
-	if !l.windowCachedAt.IsZero() && time.Since(l.windowCachedAt) < 30*time.Second {
+	if cache && !l.windowCachedAt.IsZero() && time.Since(l.windowCachedAt) < 30*time.Second {
 		st := l.windowStats
 		l.mu.Unlock()
 		return st

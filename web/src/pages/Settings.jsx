@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { me, api, mfaSetup, mfaEnable, mfaDisable } from '../api.js'
+import { me, api, mfaSetup, mfaEnable, mfaDisable, changePassword } from '../api.js'
 import { Card, Alert, Spinner, Button, Input, Select, Field, Badge, Toggle } from '../components/UI.jsx'
 import { t, currentLang, setLang, LANGS } from '../i18n.js'
 
@@ -35,6 +35,9 @@ export default function Settings() {
   const [mfaCode, setMfaCode] = useState('')
   const [mfaMsg, setMfaMsg] = useState('')
   const [mfaBusy, setMfaBusy] = useState(false)
+  const [mfaPassword, setMfaPassword] = useState('')
+  const [pw, setPw] = useState({ cur: '', nw: '', nw2: '' })
+  const [pwMsg, setPwMsg] = useState('')
 
   const loadCerts = () => api('/certificates').then(d=>setCerts(d.data||[])).catch(()=>{})
   const [ver, setVer] = useState(null)
@@ -99,11 +102,22 @@ export default function Settings() {
   const disableMFA = async () => {
     setMfaMsg(''); setMfaBusy(true)
     try {
-      await mfaDisable(mfaCode)
+      await mfaDisable(mfaCode, mfaPassword)
       const d = await me()
-      setUser(d.data); setMfaCode('')
-      setMfaMsg('MFA wurde deaktiviert.')
+      setUser(d.data); setMfaCode(''); setMfaPassword('')
+      setMfaMsg(t('MFA wurde deaktiviert.'))
     } catch(e) { setMfaMsg('Fehler: ' + e.message) } finally { setMfaBusy(false) }
+  }
+
+  const savePassword = async () => {
+    setPwMsg('')
+    if (pw.nw.length < 8) { setPwMsg('Fehler: ' + t('Das neue Passwort muss mindestens 8 Zeichen haben.')); return }
+    if (pw.nw !== pw.nw2) { setPwMsg('Fehler: ' + t('Die Passwörter stimmen nicht überein.')); return }
+    try {
+      await changePassword(pw.cur, pw.nw)
+      setPw({ cur:'', nw:'', nw2:'' })
+      setPwMsg(t('Passwort geändert.'))
+    } catch(e) { setPwMsg('Fehler: ' + e.message) }
   }
 
   return (
