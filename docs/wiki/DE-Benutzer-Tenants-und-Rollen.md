@@ -21,6 +21,8 @@ Ein Tenant ist eine Mandantengrenze für Sites, Zertifikate, Templates, GeoIP-Re
 
 Die Rollen sind in der Tabelle `roles` mit einer JSON-Permission-Liste gespeichert. Die API prüft für Schreibzugriffe derzeit die **Rolle** (`superadmin`/`tenant_admin`), nicht die einzelne Permission.
 
+**GUI für Tenant-Rollen (ab v1.0.8):** Das Rollen-Dropdown blendet System-Rollen (`superadmin`) für Nicht-Superadmins aus; Tenant-Auswahl (Sites/Templates/Zertifikate/Benutzer) ist auf den eigenen Tenant fixiert; Sidbare-Menü (IP-Listen, CrowdSec, Tenants), Logs-Sonderfilter `(admin)/(unknown)`, der Schalter „Bastion ausblenden" und das System-Ressourcen-Widget sind nur für `superadmin` sichtbar.
+
 ## Benutzer
 
 Tabelle `users`:

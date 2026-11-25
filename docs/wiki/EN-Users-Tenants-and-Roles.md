@@ -21,6 +21,8 @@ A tenant is a boundary for sites, certificates, templates, GeoIP rules and users
 
 Roles are stored in the `roles` table with a JSON permission list. The API currently checks the **role** (`superadmin`/`tenant_admin`) for writes, not individual permissions.
 
+**GUI for tenant roles (v1.0.8+):** The role dropdown hides system roles (`superadmin`) from non-superadmins; tenant selection (sites/templates/certificates/users) is locked to the own tenant; sidebar entries (IP lists, CrowdSec, Tenants), the `(admin)/(unknown)` log filters, the "Hide Bastion" toggle and the system resources widget are shown to `superadmin` only.
+
 ## Users
 
 Table `users`:
