@@ -215,6 +215,8 @@ Payload:
 | GET | `/iplist` | superadmin |
 | POST/PUT/DELETE | `/iplist` | superadmin |
 
+`POST`/`PUT` additionally accept `ttl_seconds` (int; 0 = unlimited) or `expires_at` (RFC3339). A `PUT` without either field keeps the existing expiry. Responses include `expires_at` and `source` (`manual`/`auto_ban`); expired entries are hidden by `GET` and deleted on the next reload.
+
 ### Cache
 
 | Method | Path | Role |

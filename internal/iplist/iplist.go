@@ -29,6 +29,10 @@ func New(db *gorm.DB) *List {
 }
 
 func (l *List) Reload() error {
+	// Drop entries whose expiry has passed (manual TTL and staged auto-bans).
+	if err := l.db.Where("expires_at IS NOT NULL AND expires_at < ?", time.Now()).Delete(&db.IPListEntry{}).Error; err != nil {
+		return err
+	}
 	var entries []db.IPListEntry
 	if err := l.db.Find(&entries).Error; err != nil {
 		return err
@@ -37,6 +41,9 @@ func (l *List) Reload() error {
 	denyExact := map[string]bool{}
 	var allowCIDR, denyCIDR []*net.IPNet
 	for _, e := range entries {
+		if e.ExpiresAt != nil && e.ExpiresAt.Before(time.Now()) {
+			continue
+		}
 		v := strings.TrimSpace(e.Value)
 		if strings.Contains(v, "/") {
 			if _, cidr, err := net.ParseCIDR(v); err == nil {

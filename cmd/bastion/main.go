@@ -4,6 +4,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/inboxes-cig/bastion/internal/accesslog"
@@ -120,18 +121,75 @@ func main() {
 	if cfg.Security.AutoBan404.Enabled != nil {
 		autoBanEnabled = *cfg.Security.AutoBan404.Enabled
 	}
+	firstBanDur, fderr := time.ParseDuration(cfg.Security.AutoBan404.FirstBan)
+	if fderr != nil || firstBanDur <= 0 {
+		firstBanDur = 10 * time.Minute
+	}
+	secondBanDur, sderr := time.ParseDuration(cfg.Security.AutoBan404.SecondBan)
+	if sderr != nil || secondBanDur <= 0 {
+		secondBanDur = 24 * time.Hour
+	}
 	ps.AutoBan = autoban.New(autoban.Config{
 		Enabled:       autoBanEnabled,
 		Threshold:     cfg.Security.AutoBan404.Threshold,
 		WindowSeconds: cfg.Security.AutoBan404.WindowSeconds,
 	}, func(ip string) {
-		var existing db.IPListEntry
-		if err := database.Where("kind = ? AND value = ?", "deny", ip).First(&existing).Error; err == nil {
+		now := time.Now()
+
+		// Escalation tier from the persisted strike counter; strikes decay
+		// after 30 days of good behaviour.
+		var strike db.BanStrike
+		fresh := false
+		if err := database.Where("ip = ?", ip).First(&strike).Error; err != nil {
+			strike = db.BanStrike{IP: ip}
+			fresh = true
+		} else if now.Sub(strike.LastAt) > 30*24*time.Hour {
+			strike.Strikes = 0
+		}
+		strike.Strikes++
+		strike.LastAt = now
+
+		// A manual deny (no expiry or still active) already covers this IP.
+		var active db.IPListEntry
+		database.Where("kind = ? AND value = ? AND (expires_at IS NULL OR expires_at > ?)", "deny", ip, now).First(&active)
+		if active.ID != uuid.Nil && active.Source != "auto_ban" {
+			if fresh {
+				database.Create(&strike)
+			} else {
+				database.Save(&strike)
+			}
 			return
 		}
-		if err := database.Create(&db.IPListEntry{Kind: "deny", Value: ip, Note: "404"}).Error; err != nil {
+
+		var exp *time.Time
+		var tier string
+		switch {
+		case strike.Strikes <= 1:
+			t := now.Add(firstBanDur)
+			exp = &t
+			tier = "Stufe 1 (" + cfg.Security.AutoBan404.FirstBan + ")"
+			time.AfterFunc(firstBanDur+2*time.Second, func() { ps.AutoBan.Forget(ip) })
+		case strike.Strikes == 2:
+			t := now.Add(secondBanDur)
+			exp = &t
+			tier = "Stufe 2 (" + cfg.Security.AutoBan404.SecondBan + ")"
+			time.AfterFunc(secondBanDur+2*time.Second, func() { ps.AutoBan.Forget(ip) })
+		default:
+			tier = "Stufe " + strconv.Itoa(strike.Strikes) + " (dauerhaft)"
+		}
+
+		// Replace previous auto-ban rows for this IP, then insert the new tier.
+		database.Where("kind = ? AND value = ? AND source = ?", "deny", ip, "auto_ban").Delete(&db.IPListEntry{})
+		if err := database.Create(&db.IPListEntry{Kind: "deny", Value: ip, Note: "404 – auto (" + tier + ")", ExpiresAt: exp, Source: "auto_ban"}).Error; err != nil {
 			log.Printf("auto-ban %s: %v", ip, err)
 			return
+		}
+		if fresh {
+			if err := database.Create(&strike).Error; err != nil {
+				database.Model(&db.BanStrike{}).Where("ip = ?", ip).Updates(map[string]interface{}{"strikes": strike.Strikes, "last_at": strike.LastAt})
+			}
+		} else {
+			database.Save(&strike)
 		}
 		_ = database.Create(&db.AuditLog{
 			Action:     "auto_ban",
@@ -141,12 +199,12 @@ func main() {
 			Path:       "/",
 			Status:     403,
 			IP:         ip,
-			Details:    "blocked after repeated 404 responses",
+			Details:    "Auto-Ban " + tier + " nach wiederholten 404-Antworten",
 		}).Error
 		if err := ipL.Reload(); err != nil {
 			log.Printf("auto-ban reload ip list: %v", err)
 		}
-		log.Printf("auto-ban: blocked %s after repeated 404 responses", ip)
+		log.Printf("auto-ban: blocked %s – %s", ip, tier)
 	})
 	go func() {
 		if err := ps.Start(); err != nil {

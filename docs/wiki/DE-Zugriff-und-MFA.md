@@ -24,6 +24,7 @@ Bastion prüft mehrere Schutzschichten in fester Reihenfolge.
 - `kind`: `allow` oder `deny`
 - `value`: IPv4, IPv6 oder CIDR
 - `note`: freier Text
+- `expires_at`: optionales Ablaufdatum; abgelaufene Einträge werden automatisch entfernt
 
 Verhalten:
 
@@ -60,7 +61,13 @@ Location-Regeln werden über **Site → Zugriff → Zugriffsebene** verwaltet. E
 
 ## Automatischer 404-Ban
 
-Bastion zählt **404-Antworten pro Client-IP** in einem Zeitfenster. Wird die Schwelle überschritten, landet die IP automatisch als **Deny**-Eintrag mit Notiz `404` in der globalen Blocklist.
+Bastion zählt **404-Antworten pro Client-IP** in einem Zeitfenster. Wird die Schwelle überschritten, landet die IP automatisch als **Deny**-Eintrag mit Ablauf in der globalen Blocklist – **eskaliend**:
+
+1. **Stufe 1:** kurz sperren (Default `10m`)
+2. **Stufe 2:** lang sperren (Default `24h`)
+3. **Stufe 3+:** dauerhaft
+
+Die Stufenzahl pro IP wird in der Tabelle `ban_strikes` persistiert und verfällt nach 30 Tagen ohne Auffälligkeit. Ein manueller dauerhafter Deny für dieselbe IP hat Vorrang und unterdrückt weitere Auto-Einträge.
 
 Standardwerte:
 
@@ -70,10 +77,12 @@ security:
     enabled: true
     threshold: 50
     window_seconds: 600
+    first_ban: 10m
+    second_ban: 24h
 ```
 
 - 50 × 404 innerhalb von 10 Minuten → Ban.
-- Der Ban ist dauerhaft, bis du den Eintrag unter **IP Lists** löschst.
+- Nach Ablauf der Sperrzeit entfernt Bastion den Eintrag automatisch (Reload alle 60 s); erst dann kann dieselbe IP wieder Traffic sehen.
 - **Nicht gezählt:** Admin-Requests, globale Allowlist-IPs, Status ≠ 404.
 - Der Ban wird im **Audit-Log** als `auto_ban` festgehalten.
 - Nach dem Ban wird die IP-Liste sofort neu geladen; weitere Requests werden blockiert.

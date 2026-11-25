@@ -49,9 +49,11 @@ type Config struct {
 	} `yaml:"cache"`
 	Security struct {
 		AutoBan404 struct {
-			Enabled       *bool `yaml:"enabled"`
-			Threshold     int   `yaml:"threshold"`
-			WindowSeconds int   `yaml:"window_seconds"`
+			Enabled       *bool  `yaml:"enabled"`
+			Threshold     int    `yaml:"threshold"`
+			WindowSeconds int    `yaml:"window_seconds"`
+			FirstBan      string `yaml:"first_ban"`
+			SecondBan     string `yaml:"second_ban"`
 		} `yaml:"auto_ban_404"`
 		Upstream struct {
 			AllowPrivate bool     `yaml:"allow_private"`
@@ -93,6 +95,12 @@ func Load(path string) (*Config, error) {
 	}
 	if c.Security.AutoBan404.WindowSeconds == 0 {
 		c.Security.AutoBan404.WindowSeconds = 600
+	}
+	if c.Security.AutoBan404.FirstBan == "" {
+		c.Security.AutoBan404.FirstBan = "10m"
+	}
+	if c.Security.AutoBan404.SecondBan == "" {
+		c.Security.AutoBan404.SecondBan = "24h"
 	}
 	return &c, nil
 }

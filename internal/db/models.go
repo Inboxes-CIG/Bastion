@@ -172,11 +172,22 @@ type Certificate struct {
 }
 
 type IPListEntry struct {
-	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	Kind      string    `gorm:"not null" json:"kind"`
-	Value     string    `gorm:"not null" json:"value"`
-	Note      string    `json:"note"`
-	CreatedAt time.Time `json:"created_at"`
+	ID        uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	Kind      string     `gorm:"not null" json:"kind"`
+	Value     string     `gorm:"not null" json:"value"`
+	Note      string     `json:"note"`
+	ExpiresAt *time.Time `gorm:"index" json:"expires_at"`
+	Source    string     `gorm:"default:manual" json:"source"`
+	CreatedAt time.Time  `json:"created_at"`
+}
+
+// BanStrike counts how often the 404 auto-ban fired for an IP. It drives the
+// escalation tiers (short ban -> long ban -> permanent) and survives restarts.
+type BanStrike struct {
+	ID      uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	IP      string    `gorm:"uniqueIndex;not null" json:"ip"`
+	Strikes int       `json:"strikes"`
+	LastAt  time.Time `json:"last_at"`
 }
 
 type GeoIPRule struct {
@@ -244,5 +255,5 @@ type RefreshToken struct {
 }
 
 func AutoMigrate(d *gorm.DB) error {
-	return d.AutoMigrate(&Tenant{}, &Role{}, &User{}, &SiteTemplate{}, &Site{}, &SiteLocation{}, &Certificate{}, &GeoIPRule{}, &IPListEntry{}, &AuditLog{}, &GoodActor{}, &SiteAuthUser{}, &SiteIPRule{}, &RefreshToken{})
+	return d.AutoMigrate(&Tenant{}, &Role{}, &User{}, &SiteTemplate{}, &Site{}, &SiteLocation{}, &Certificate{}, &GeoIPRule{}, &IPListEntry{}, &AuditLog{}, &GoodActor{}, &SiteAuthUser{}, &SiteIPRule{}, &RefreshToken{}, &BanStrike{})
 }

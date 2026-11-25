@@ -24,6 +24,7 @@ Bastion checks several protection layers in a fixed order.
 - `kind`: `allow` or `deny`
 - `value`: IPv4, IPv6 or CIDR
 - `note`: free text
+- `expires_at`: optional expiry; expired entries are removed automatically
 
 Behavior:
 
@@ -60,7 +61,13 @@ Location rules are managed via **Site → Access → Access scope**. A location 
 
 ## Automatic 404 ban
 
-Bastion counts **404 responses per client IP** inside a time window. When the threshold is exceeded, the IP is added automatically as a **deny** entry with note `404` to the global blocklist.
+Bastion counts **404 responses per client IP** inside a time window. When the threshold is exceeded, the IP is added automatically as a **deny** entry with an expiry to the global blocklist – **escalating**:
+
+1. **Stage 1:** short ban (default `10m`)
+2. **Stage 2:** long ban (default `24h`)
+3. **Stage 3+:** permanent
+
+The per-IP stage counter is persisted in the `ban_strikes` table and decays after 30 days without incidents. A manual permanent deny for the same IP takes precedence and suppresses further auto entries.
 
 Defaults:
 
@@ -70,10 +77,12 @@ security:
     enabled: true
     threshold: 50
     window_seconds: 600
+    first_ban: 10m
+    second_ban: 24h
 ```
 
 - 50 × 404 within 10 minutes → ban.
-- The ban is permanent until you delete the entry under **IP Lists**.
+- After the ban expires, Bastion removes the entry automatically (reload every 60 s); only then can the same IP see traffic again.
 - **Not counted:** admin requests, globally allowlisted IPs, status ≠ 404.
 - The ban is recorded in the **audit log** as `auto_ban`.
 - The IP list reloads immediately; further requests are blocked.

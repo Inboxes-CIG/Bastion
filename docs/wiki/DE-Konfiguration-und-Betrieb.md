@@ -52,6 +52,8 @@ security:
     enabled: true
     threshold: 50
     window_seconds: 600
+    first_ban: 10m            # Stufe 1
+    second_ban: 24h           # Stufe 2, danach dauerhaft
 ```
 
 ### Hinweise

@@ -90,3 +90,39 @@ func TestDetectorDisabled(t *testing.T) {
 	})
 	d.Observe("192.0.2.99", 404, false, false)
 }
+
+func TestForgetAllowsNextTier(t *testing.T) {
+	var mu sync.Mutex
+	hits := 0
+	d := New(Config{Enabled: true, Threshold: 1, WindowSeconds: 60}, func(ip string) {
+		mu.Lock()
+		hits++
+		mu.Unlock()
+	})
+	d.Observe("192.0.2.10", 404, false, false)
+	time.Sleep(50 * time.Millisecond)
+	mu.Lock()
+	first := hits
+	mu.Unlock()
+	if first != 1 {
+		t.Fatalf("expected first trigger, got %d", hits)
+	}
+	// While suppressed, further floods must not re-trigger.
+	d.Observe("192.0.2.10", 404, false, false)
+	time.Sleep(50 * time.Millisecond)
+	mu.Lock()
+	suppressed := hits
+	mu.Unlock()
+	if suppressed != 1 {
+		t.Fatalf("suppression lost: %d", suppressed)
+	}
+	// After Forget (timed ban expired) the next flood triggers the next tier.
+	d.Forget("192.0.2.10")
+	d.Observe("192.0.2.10", 404, false, false)
+	time.Sleep(50 * time.Millisecond)
+	mu.Lock()
+	defer mu.Unlock()
+	if hits != 2 {
+		t.Fatalf("Forget did not re-arm detector: %d", hits)
+	}
+}

@@ -229,6 +229,16 @@ const en = {
   'Primäre Domain (z. B. example.com). Alle SANs aus dem Zertifikat – auch Wildcards wie *.example.com – werden automatisch übernommen.': 'Primary domain (e.g. example.com). All SANs in the certificate – including wildcards like *.example.com – are imported automatically.',
   'Source': 'Source',
   'Gültig bis': 'Valid until',
+  'Ablauf': 'Expiry',
+  'unbegrenzt': 'unlimited',
+  '10 Minuten': '10 minutes',
+  '1 Stunde': '1 hour',
+  '24 Stunden': '24 hours',
+  '7 Tage': '7 days',
+  'unverändert': 'unchanged',
+  'läuft ab': 'expires',
+  'auto': 'auto',
+  'Einträge können mit Ablauf hinterlegt werden; abgelaufene Sperren werden automatisch entfernt. Automatische 404-Sperren eskalieren: zuerst kurz, dann 24h, danach dauerhaft.': 'Entries can carry an expiry; expired bans are removed automatically. Automatic 404 bans escalate: first a short ban, then 24 h, then permanent.',
 
   // Users / tenants
   'User löschen?': 'Delete user?',

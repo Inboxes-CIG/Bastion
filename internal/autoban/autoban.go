@@ -81,9 +81,22 @@ func (d *Detector) Observe(ip string, status int, admin, allowed bool) {
 	}
 }
 
+// Forget clears the suppression and the 404 counter for an IP. main.go calls
+// it when a timed auto-ban expires so the next occurrence escalates to the
+// next tier instead of being silently dropped.
+func (d *Detector) Forget(ip string) {
+	if d == nil {
+		return
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	delete(d.banned, ip)
+	delete(d.counts, ip)
+}
+
 // cleanupLocked drops expired counters and forgets bans after 24h so the map
 // does not grow without bound. The blocklist entry itself remains until an
-// administrator removes it.
+// administrator removes it or its expiry passes.
 func (d *Detector) cleanupLocked(now time.Time, window time.Duration) {
 	for ip, c := range d.counts {
 		if now.Sub(c.first) > window {
