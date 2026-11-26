@@ -48,50 +48,56 @@ normalize_host() {
   printf '%s' "$1" | sed -E 's#^[a-zA-Z][a-zA-Z0-9+.-]*://##; s#/.*$##; s/[[:space:]]//g; s/"//g' | sed "s/'//g"
 }
 
+# ask reads a value into the global ASK_REPLY. It must not run inside a
+# command substitution: under sudo (use_pty) the substitution subshell can be
+# stopped by SIGTTIN when reading /dev/tty, which deadlocks the installer.
+ASK_REPLY=""
 ask() {
-  local label="$1" def="${2:-}" value="" prompt
+  local label="$1" def="${2:-}" value="" prompt rc=0
   prompt="$label${def:+ [$def]}: "
+  ASK_REPLY="$def"
   if can_prompt; then
     if [ -t 0 ]; then
-      read -r -t 120 -p "$prompt" value || true
+      read -r -t 120 -p "$prompt" value || rc=$?
     else
-      read -r -t 120 -p "$prompt" value < /dev/tty || true
+      read -r -t 120 -p "$prompt" value < /dev/tty || rc=$?
     fi
+    if [ "$rc" -gt 128 ]; then
+      echo "  (keine Eingabe innerhalb von 120 s – verwende Standardwert)" >&2
+      value=""
+    fi
+    if [ -n "$value" ]; then ASK_REPLY="$value"; fi
   fi
-  printf '%s' "${value:-$def}"
+  return 0
 }
 
-# can_prompt reports whether the installer may read from a terminal. Reading
-# /dev/tty while being in a background process group stops the shell with
-# SIGTTIN (e.g. nested sudo with use_pty in a "curl | sudo bash" pipeline).
-# In that case we fall back to defaults/flags instead of hanging.
+# can_prompt reports whether the installer may read from a terminal.
 can_prompt() {
   if [ -t 0 ]; then
     return 0
   fi
   [ -t 2 ] || return 1
   [ -r /dev/tty ] || return 1
-  command -v ps >/dev/null 2>&1 || return 1
-  local tpgid pgid
-  tpgid=$(ps -o tpgid= -p $$ 2>/dev/null | tr -d '[:space:]')
-  pgid=$(ps -o pgid= -p $$ 2>/dev/null | tr -d '[:space:]')
-  if [ -n "$tpgid" ] && [ "$tpgid" != "-1" ] && [ -n "$pgid" ]; then
-    [ "$tpgid" = "$pgid" ] || return 1
-  fi
   return 0
 }
 
 ask_secret() {
-  local label="$1" value=""
+  local label="$1" value="" rc=0
+  ASK_REPLY=""
   if can_prompt; then
     if [ -t 0 ]; then
-      read -r -s -t 120 -p "$label: " value || true
+      read -r -s -t 120 -p "$label: " value || rc=$?
     else
-      read -r -s -t 120 -p "$label: " value < /dev/tty || true
+      read -r -s -t 120 -p "$label: " value < /dev/tty || rc=$?
     fi
     echo >&2
+    if [ "$rc" -gt 128 ]; then
+      echo "  (keine Eingabe innerhalb von 120 s – Passwort wird generiert)" >&2
+      value=""
+    fi
+    ASK_REPLY="$value"
   fi
-  printf '%s' "$value"
+  return 0
 }
 
 port_in_use() {
@@ -144,7 +150,8 @@ HOSTNAME_VALUE="$(normalize_host "$HOSTNAME_OPT")"
 if [ -z "$HOSTNAME_VALUE" ]; then
   DEFAULT_HOST="$(hostname -f 2>/dev/null || hostname 2>/dev/null || echo localhost)"
   if [ -t 0 ] || [ -r /dev/tty ]; then
-    HOSTNAME_VALUE="$(ask "Hostname/FQDN für die Admin-Oberfläche" "$DEFAULT_HOST")"
+    ask "Hostname/FQDN für die Admin-Oberfläche" "$DEFAULT_HOST"
+    HOSTNAME_VALUE="$ASK_REPLY"
   else
     HOSTNAME_VALUE="$DEFAULT_HOST"
   fi
@@ -287,12 +294,14 @@ if [ "$FRESH_ADMIN" -eq 1 ]; then
   fi
   ADMIN_EMAIL_VALUE="$ADMIN_EMAIL_OPT"
   if [ -z "$ADMIN_EMAIL_VALUE" ]; then
-    ADMIN_EMAIL_VALUE="$(ask "Admin-E-Mail" "$DEFAULT_ADMIN")"
+    ask "Admin-E-Mail" "$DEFAULT_ADMIN"
+    ADMIN_EMAIL_VALUE="$ASK_REPLY"
   fi
   [ -n "$ADMIN_EMAIL_VALUE" ] || ADMIN_EMAIL_VALUE="$DEFAULT_ADMIN"
   ADMIN_PASSWORD_VALUE="$ADMIN_PASSWORD_OPT"
   if [ -z "$ADMIN_PASSWORD_VALUE" ]; then
-    ADMIN_PASSWORD_VALUE="$(ask_secret "Admin-Passwort (leer = automatisch generieren)")"
+    ask_secret "Admin-Passwort (leer = automatisch generieren)"
+    ADMIN_PASSWORD_VALUE="$ASK_REPLY"
   fi
 
   OLD_UMASK=$(umask)
