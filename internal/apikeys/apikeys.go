@@ -86,7 +86,7 @@ func (s *Service) Reload() error {
 	}
 	rpm := 0
 	var st db.APISettings
-	if err := s.DB.Order("created_at ASC").First(&st).Error; err == nil {
+	if err := s.DB.Order("created_at ASC").Limit(1).Find(&st).Error; err == nil {
 		if st.DefaultRateLimitRPM > 0 {
 			rpm = st.DefaultRateLimitRPM
 		}

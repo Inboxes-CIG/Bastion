@@ -74,7 +74,7 @@ func (c *Cache) Reload() error {
 	geoMode := "block"
 	countries := map[string]bool{}
 	var policy db.AdminGeoPolicy
-	if err := c.db.Order("created_at ASC").First(&policy).Error; err == nil {
+	if err := c.db.Order("created_at ASC").Limit(1).Find(&policy).Error; err == nil {
 		geoEnabled = policy.Enabled
 		if policy.Mode == "allow" || policy.Mode == "block" {
 			geoMode = policy.Mode
