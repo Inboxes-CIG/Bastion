@@ -105,6 +105,16 @@ export default function Layout() {
   const isSuper = user?.role === 'superadmin'
   const visibleNav = NAV.filter(n => !n.superOnly || user == null || isSuper)
 
+  // Exact active state: /sites must not light up when /sites/stats is open
+  // (and vice versa), while /sites/:id still belongs to Sites.
+  const isNavActive = (to) => {
+    const p = loc.pathname
+    if (to === '/') return p === '/'
+    if (to === '/sites') return p === '/sites' || (p.startsWith('/sites/') && p !== '/sites/stats')
+    if (to === '/sites/stats') return p === '/sites/stats'
+    return p === to || p.startsWith(to + '/')
+  }
+
   const navLink = ({ isActive }) =>
     `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
       isActive ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
@@ -127,7 +137,7 @@ export default function Layout() {
         </div>
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
           {visibleNav.map(n => (
-            <NavLink key={n.to} to={n.to} end={n.end} className={navLink} onClick={() => setOpen(false)}>
+            <NavLink key={n.to} to={n.to} end={n.end} className={() => navLink({ isActive: isNavActive(n.to) })} onClick={() => setOpen(false)}>
               <Icon name={n.icon} className="w-5 h-5" />
               {t(n.label)}
             </NavLink>
