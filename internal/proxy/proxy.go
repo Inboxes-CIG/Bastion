@@ -345,6 +345,15 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 			skipLog = true
 		}
 		if strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/healthz" {
+			// Trustworthy client IP for the API IP allowlist: overwrite any
+			// client-supplied values with the direct peer address. The inner
+			// API trusts only X-Real-IP, never X-Forwarded-For.
+			peer := r.RemoteAddr
+			if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+				peer = host
+			}
+			r.Header.Set("X-Real-IP", peer)
+			r.Header.Set("X-Forwarded-For", peer)
 			upstream, _ := url.Parse("http://127.0.0.1:8080")
 			rp := httputil.NewSingleHostReverseProxy(upstream)
 			rp.ServeHTTP(sw, r)

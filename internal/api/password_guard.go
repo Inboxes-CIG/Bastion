@@ -19,6 +19,12 @@ func PasswordChangeGuard(d *gorm.DB) gin.HandlerFunc {
 			c.Next()
 			return
 		}
+		// API keys are an independent credential; the password gate does not
+		// apply to scripted access.
+		if c.GetString("auth_method") == "api_key" {
+			c.Next()
+			return
+		}
 		path := c.Request.URL.Path
 		if strings.HasSuffix(path, "/auth/me") ||
 			strings.HasSuffix(path, "/auth/change-password") ||

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { me, api, mfaSetup, mfaEnable, mfaDisable, changePassword } from '../api.js'
 import { Card, Alert, Spinner, Button, Input, Select, Field, Badge, Toggle } from '../components/UI.jsx'
 import GuiSecurity from '../components/GuiSecurity.jsx'
+import ApiSettings from '../components/ApiSettings.jsx'
 import { t, currentLang, setLang, LANGS } from '../i18n.js'
 
 function Row({ label, value }) {
@@ -60,6 +61,7 @@ export default function Settings() {
   if (!user) return <Spinner />
 
   const isSuper = user.role === 'superadmin'
+  const canApi = isSuper || user.role === 'tenant_admin'
   const sections = [
     { id: 'general', label: t('Allgemein') },
     ...(isSuper ? [
@@ -67,6 +69,7 @@ export default function Settings() {
       { id: 'cache', label: t('Response-Cache') },
       { id: 'guisec', label: t('GUI-Security') },
     ] : []),
+    ...(canApi ? [{ id: 'api', label: t('API') }] : []),
   ]
 
   const adminHosts = adminInfo?.admin_hosts || []
@@ -293,6 +296,8 @@ export default function Settings() {
       )}
 
       {section === 'guisec' && isSuper && <GuiSecurity />}
+
+      {section === 'api' && canApi && <ApiSettings />}
     </div>
   )
 }

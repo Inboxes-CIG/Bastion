@@ -161,6 +161,7 @@ Die Datenbank wird beim Start automatisch migriert (`AutoMigrate`).
 - MFA für alle GUI-Benutzer aktivieren; Deaktivierung erfordert Passwort
 - Login-Lockout (3 Versuche/10 min pro IP+E-Mail), Refresh-Rotation mit Diebstahl-Erkennung, Reauth für sensible Benutzeränderungen
 - GUI-Zugriffsschutz (eigene IP-Listen + GeoIP) unter Settings → GUI-Security; Loopback bleibt immer erlaubt
+- API-Zugriff per Keys unter Settings → API; die IP-Allowlist ist ab Werk leer = **nur Loopback**, weitere IPs/CIDRs bei Bedarf eintragen
 - Upstreams SSRF-geprüft: private Ziele nur über die Tenant-Allowlist (GUI → Tenants → Upstream-Allowliste) bzw. optional `security.upstream.allowed_hosts`; die Prüfung läuft bei jedem Request live erneut (DNS-Recheck, gecacht) und liest die Tenant-Liste alle 60 s neu – auch ein manipulierter DB-Eintrag oder DNS-Rebinding kommt nicht durch
 - Unbekannte SNI-Namen erhalten bewusst ein selbstsigniertes Default-Zertifikat (Admin-GUI auf IP/Eigabe bleibt so erreichbar)
 - Regelmäßige Backups von DB, Config und Zertifikaten

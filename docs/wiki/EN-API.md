@@ -55,6 +55,19 @@ POST /auth/login/mfa
 { "mfa_token": "…", "code": "123456" }
 ```
 
+### API keys (automation)
+
+Superadmins and tenant admins create API keys under **Settings → API** (`POST /auth/api-keys`). The plaintext key (`bsk_…`) is shown **once**; only its SHA-256 hash is stored.
+
+```sh
+curl -fsS https://<admin-host>/api/v1/sites -H "Authorization: Bearer bsk_…"
+```
+
+- Permissions and tenant come from the user (tenant-admin keys only see their tenant). API keys bypass the must-change-password guard.
+- **API IP allowlist** (Settings → API, superadmin only): while the list is **empty**, API keys work **only over loopback (127.0.0.1)**. Entries (IP/CIDR) allow additional sources; loopback is always allowed. The check uses the real connection IP (X-Real-IP set by the reverse proxy); client-supplied `X-Forwarded-For` headers are ignored.
+- **Rate limit:** per key (requests/minute) or a global default (0 = off). Exceeding it returns `429` with `Retry-After`.
+- Keys remain valid until revoked, optionally with an expiry. `GET /auth/api-keys` lists your keys, `DELETE /auth/api-keys/:id` revokes; superadmins see/revoke all via `GET /admin/api-keys`.
+
 ### Refresh
 
 ```http

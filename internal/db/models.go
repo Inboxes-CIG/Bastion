@@ -210,6 +210,38 @@ type AdminGeoPolicy struct {
 	UpdatedAt time.Time   `json:"updated_at"`
 }
 
+// APIKey authenticates scripts against /api/v1. Only the SHA-256 hash of the
+// key is stored; the plaintext is shown once at creation.
+type APIKey struct {
+	ID           uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	UserID       uuid.UUID  `gorm:"type:uuid;index;not null" json:"user_id"`
+	Name         string     `gorm:"not null" json:"name"`
+	KeyHash      string     `gorm:"uniqueIndex;not null" json:"-"`
+	Prefix       string     `json:"prefix"`
+	RateLimitRPM *int       `json:"rate_limit_rpm"`
+	ExpiresAt    *time.Time `json:"expires_at"`
+	LastUsedAt   *time.Time `json:"last_used_at"`
+	CreatedAt    time.Time  `json:"created_at"`
+	RevokedAt    *time.Time `json:"revoked_at"`
+}
+
+// APIIPRule is an entry of the global API IP allowlist. An empty list means
+// only loopback may use API keys.
+type APIIPRule struct {
+	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	Value     string    `gorm:"not null" json:"value"`
+	Note      string    `json:"note"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// APISettings is the singleton with API-wide defaults.
+type APISettings struct {
+	ID                  uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	DefaultRateLimitRPM int       `json:"default_rate_limit_rpm"`
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
+}
+
 type GeoIPRule struct {
 	ID          uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	TenantID    uuid.UUID  `gorm:"type:uuid;index;not null" json:"tenant_id"`
@@ -275,5 +307,5 @@ type RefreshToken struct {
 }
 
 func AutoMigrate(d *gorm.DB) error {
-	return d.AutoMigrate(&Tenant{}, &Role{}, &User{}, &SiteTemplate{}, &Site{}, &SiteLocation{}, &Certificate{}, &GeoIPRule{}, &IPListEntry{}, &AuditLog{}, &GoodActor{}, &SiteAuthUser{}, &SiteIPRule{}, &RefreshToken{}, &BanStrike{}, &AdminIPRule{}, &AdminGeoPolicy{})
+	return d.AutoMigrate(&Tenant{}, &Role{}, &User{}, &SiteTemplate{}, &Site{}, &SiteLocation{}, &Certificate{}, &GeoIPRule{}, &IPListEntry{}, &AuditLog{}, &GoodActor{}, &SiteAuthUser{}, &SiteIPRule{}, &RefreshToken{}, &BanStrike{}, &AdminIPRule{}, &AdminGeoPolicy{}, &APIKey{}, &APIIPRule{}, &APISettings{})
 }

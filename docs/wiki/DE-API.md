@@ -55,6 +55,19 @@ POST /auth/login/mfa
 { "mfa_token": "…", "code": "123456" }
 ```
 
+### API-Keys (Automatisierung)
+
+Superadmins und Tenant-Admins erstellen API-Keys unter **Settings → API** (`POST /auth/api-keys`). Der Klartext-Key (`bsk_…`) wird **nur einmal** angezeigt; gespeichert wird ausschließlich der SHA-256-Hash.
+
+```sh
+curl -fsS https://<admin-host>/api/v1/sites -H "Authorization: Bearer bsk_…"
+```
+
+- Rechte und Tenant ergeben sich aus dem Benutzer (Tenant-Admin-Keys sehen nur den eigenen Tenant). API-Keys überspringen den Passwort-Änderungs-Guard.
+- **API-IP-Allowlist** (Settings → API, nur Superadmin): Ist die Liste **leer**, sind API-Keys **nur über Loopback (127.0.0.1)** nutzbar. Einträge (IP/CIDR) erlauben weitere Quellen; Loopback bleibt immer erlaubt. Die Prüfung nutzt die echte Verbindungs-IP (X-Real-IP des Reverse-Proxys); client-seitige `X-Forwarded-For`-Header werden ignoriert.
+- **Rate-Limit:** pro Key (Anfragen/Minute) oder global als Default (0 = aus). Überschreitung → `429` mit `Retry-After`.
+- Keys gelten bis zum Widerruf, optional mit Ablaufdatum. `GET /auth/api-keys` listet eigene Keys, `DELETE /auth/api-keys/:id` widerruft; Superadmins sehen/widerrufen alle über `GET /admin/api-keys`.
+
 ### Refresh
 
 ```http

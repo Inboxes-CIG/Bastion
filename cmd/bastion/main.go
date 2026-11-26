@@ -9,6 +9,7 @@ import (
 
 	"github.com/inboxes-cig/bastion/internal/accesslog"
 	"github.com/inboxes-cig/bastion/internal/adminaccess"
+	"github.com/inboxes-cig/bastion/internal/apikeys"
 	"github.com/inboxes-cig/bastion/internal/autoban"
 	"github.com/inboxes-cig/bastion/internal/api"
 	"os"
@@ -91,6 +92,12 @@ func main() {
 		log.Printf("admin access policy: %v", err)
 	}
 	go adminAccess.Run(60 * time.Second)
+
+	apiKeys := apikeys.New(database)
+	if err := apiKeys.Reload(); err != nil {
+		log.Printf("api key policy: %v", err)
+	}
+	go apiKeys.Run(60 * time.Second)
 
 	var cs *crowdsec.Client
 	if cfg.CrowdSec.Enabled {
@@ -268,6 +275,7 @@ func main() {
 		AllowedUpstreamHosts: cfg.Security.Upstream.AllowedHosts,
 		AdminAccess: adminAccess,
 		GeoIP:       g,
+		APIKeys:     apiKeys,
 	})
 	go func() {
 		sig := make(chan os.Signal, 1)

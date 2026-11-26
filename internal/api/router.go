@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/inboxes-cig/bastion/internal/accesslog"
 	"github.com/inboxes-cig/bastion/internal/adminaccess"
+	"github.com/inboxes-cig/bastion/internal/apikeys"
 	"github.com/inboxes-cig/bastion/internal/audit"
 	"github.com/inboxes-cig/bastion/internal/auth"
 	"github.com/inboxes-cig/bastion/internal/cache"
@@ -36,6 +37,7 @@ type Deps struct {
 	AllowedUpstreamHosts []string
 	AdminAccess *adminaccess.Cache
 	GeoIP       *geoip.Lookup
+	APIKeys     *apikeys.Service
 }
 
 func securityHeaders() gin.HandlerFunc {
@@ -104,6 +106,7 @@ func NewRouter(d Deps) *gin.Engine {
 	accessH := &SiteAccessHandler{DB: d.DB, Access: d.Access}
 	adminH := &AdminHandler{DB: d.DB, AdminHosts: d.AdminHosts}
 	adminSecH := &AdminSecurityHandler{DB: d.DB, Access: d.AdminAccess, GeoIP: d.GeoIP}
+	apiKeyH := &APIKeyHandler{DB: d.DB, Keys: d.APIKeys}
 	iplH := &IPListHandler{DB: d.DB, IPs: d.IPList}
 	cacheH := &CacheHandler{DB: d.DB, Cache: d.Cache}
 
@@ -116,7 +119,7 @@ func NewRouter(d Deps) *gin.Engine {
 		v1.POST("/auth/login/mfa", authH.MFALogin)
 
 		protected := v1.Group("")
-		protected.Use(auth.AuthMiddleware(d.JWTSecret))
+		protected.Use(apiKeyAuthMiddleware(d.JWTSecret, d.APIKeys))
 		protected.Use(PasswordChangeGuard(d.DB))
 		{
 			protected.GET("/auth/me", authH.Me)
@@ -136,6 +139,18 @@ func NewRouter(d Deps) *gin.Engine {
 			protected.DELETE("/admin/ip-rules/:id", auth.RequireRole("superadmin"), adminSecH.DeleteIPRule)
 			protected.GET("/admin/geo", auth.RequireRole("superadmin"), adminSecH.GetGeo)
 			protected.PUT("/admin/geo", auth.RequireRole("superadmin"), adminSecH.SetGeo)
+
+			// API keys and the API IP allowlist
+			protected.POST("/auth/api-keys", auth.RequireRole("superadmin", "tenant_admin"), apiKeyH.Create)
+			protected.GET("/auth/api-keys", auth.RequireRole("superadmin", "tenant_admin"), apiKeyH.List)
+			protected.DELETE("/auth/api-keys/:id", auth.RequireRole("superadmin", "tenant_admin"), apiKeyH.Delete)
+			protected.GET("/admin/api-keys", auth.RequireRole("superadmin"), apiKeyH.AdminList)
+			protected.GET("/admin/api-ip-rules", auth.RequireRole("superadmin"), apiKeyH.ListIPRules)
+			protected.POST("/admin/api-ip-rules", auth.RequireRole("superadmin"), apiKeyH.CreateIPRule)
+			protected.PUT("/admin/api-ip-rules/:id", auth.RequireRole("superadmin"), apiKeyH.UpdateIPRule)
+			protected.DELETE("/admin/api-ip-rules/:id", auth.RequireRole("superadmin"), apiKeyH.DeleteIPRule)
+			protected.GET("/admin/api-settings", auth.RequireRole("superadmin"), apiKeyH.GetSettings)
+			protected.PUT("/admin/api-settings", auth.RequireRole("superadmin"), apiKeyH.SetSettings)
 
 			// Local IP allow/deny lists
 			protected.GET("/cache", cacheH.Get)
