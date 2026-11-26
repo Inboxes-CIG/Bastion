@@ -12,8 +12,10 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/inboxes-cig/bastion/internal/accesslog"
 	"github.com/inboxes-cig/bastion/internal/adminaccess"
 	"github.com/inboxes-cig/bastion/internal/autoban"
@@ -51,6 +53,41 @@ type Server struct {
 	AdminHosts         map[string]bool
 	AllowPrivateUpstream bool
 	AllowedUpstreamHosts []string
+
+	tenantMu     sync.Mutex
+	tenantAllows map[uuid.UUID]tenantAllowEntry
+}
+
+type tenantAllowEntry struct {
+	hosts []string
+	at    time.Time
+}
+
+// tenantAllowedHosts returns the upstream allowlist of a tenant, cached for
+// 60 seconds so policy edits take effect without a restart. The tenant list is
+// the primary place to maintain private upstream permissions.
+func (s *Server) tenantAllowedHosts(id uuid.UUID) []string {
+	if id == uuid.Nil {
+		return nil
+	}
+	s.tenantMu.Lock()
+	if s.tenantAllows == nil {
+		s.tenantAllows = map[uuid.UUID]tenantAllowEntry{}
+	}
+	e, ok := s.tenantAllows[id]
+	s.tenantMu.Unlock()
+	if ok && time.Since(e.at) < 60*time.Second {
+		return e.hosts
+	}
+	var t db.Tenant
+	hosts := []string{}
+	if err := s.DB.Select("id, allowed_upstream_hosts").First(&t, "id = ?", id).Error; err == nil {
+		hosts = append(hosts, t.AllowedUpstreamHosts...)
+	}
+	s.tenantMu.Lock()
+	s.tenantAllows[id] = tenantAllowEntry{hosts: hosts, at: time.Now()}
+	s.tenantMu.Unlock()
+	return hosts
 }
 
 func NewServer(db *gorm.DB, cm *cert.Manager, g *geoip.Lookup, cs *crowdsec.Client, lg *accesslog.Logger, il *iplist.List, rl *ratelimit.Limiter, ca *cache.Cache, httpAddr, httpsAddr string, adminHosts []string) *Server {
@@ -648,11 +685,14 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Upstream policy: global allow_private plus the tenant allowlist, which is
+	// the primary place to maintain private upstream permissions.
 	allowPrivate := s.AllowPrivateUpstream
-	if loc.UpstreamAllowPrivate || site.UpstreamAllowPrivate || (tmpl != nil && tmpl.UpstreamAllowPrivate) {
-		allowPrivate = true
+	allowedHosts := s.AllowedUpstreamHosts
+	if th := s.tenantAllowedHosts(site.TenantID); len(th) > 0 {
+		allowedHosts = append(append([]string{}, allowedHosts...), th...)
 	}
-	if err := netguard.CheckLive(upstreamURL, allowPrivate, s.AllowedUpstreamHosts); err != nil {
+	if err := netguard.CheckLive(upstreamURL, allowPrivate, allowedHosts); err != nil {
 		entry.Blocked = true
 		entry.BlockReason = "ssrf"
 		log.Printf("upstream blocked for %s: %v", host, err)

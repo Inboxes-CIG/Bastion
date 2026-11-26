@@ -100,7 +100,7 @@ Upstream-Ziele werden beim Speichern **und** beim Request geprüft, um Server-si
 - Nur die Schemata `http`/`https`; `file:`, `gopher:` usw. werden abgelehnt.
 - Loopback-, Link-Local- (inkl. `169.254.169.254` Cloud-Metadata), CGNAT- (`100.64/10`) und RFC1918-Netze sind standardmäßig blockiert.
 - Hostnamen werden beim Speichern aufgelöst; löst ein Name auf eine private Adresse, wird er abgelehnt.
-- **Ausnahmen:** `security.upstream.allow_private: true` (global), `security.upstream.allowed_hosts` (Hosts/`*.domains`/CIDRs) oder die Tenant-Liste `allowed_upstream_hosts`.
+- **Ausnahmen:** die Tenant-Liste `allowed_upstream_hosts` (GUI → Tenants; primäre Pflegestelle), optional `security.upstream.allowed_hosts` (global) oder `security.upstream.allow_private: true`.
 - Beim Anlegen/Bearbeiten: `400` mit `upstream: …`; im Betrieb wird bei jedem Request erneut geprüft (Hostname-Auflösung mit kurzem Cache) und bei Verstoß `502` mit `block_reason=ssrf` geliefert.
 
 > **Beispiel:** Ein Backend im Netz `10.10.20.0/24` funktioniert nur, wenn dieses CIDR in `security.upstream.allowed_hosts` (oder in der Tenant-Allowlist) steht.

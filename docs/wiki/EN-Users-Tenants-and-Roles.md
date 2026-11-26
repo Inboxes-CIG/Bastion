@@ -6,7 +6,7 @@ A tenant is a boundary for sites, certificates, templates, GeoIP rules and users
 
 - **Default** is created on first start.
 - Only `superadmin` can create/update/delete tenants.
-- Tenants have `allowed_upstream_hosts`: hosts, `*.domains` or CIDRs permitted as private upstream targets (SSRF allowlist).
+- Tenants have `allowed_upstream_hosts`: hosts, `*.domains` or CIDRs permitted as private upstream targets (SSRF allowlist; **primary place to manage**, empty by default).
 - The superadmin has `tenant_id = NULL` and sees everything.
 - Other users only see data in their tenant (lists and stats are filtered; foreign resources return 404).
 

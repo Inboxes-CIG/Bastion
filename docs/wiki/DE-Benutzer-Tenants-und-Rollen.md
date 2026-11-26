@@ -6,7 +6,7 @@ Ein Tenant ist eine Mandantengrenze für Sites, Zertifikate, Templates, GeoIP-Re
 
 - Beim ersten Start wird **Default** angelegt.
 - Nur `superadmin` kann Tenants anlegen/ändern/löschen.
-- Tenants haben `allowed_upstream_hosts`: Hosts, `*.domains` oder CIDRs, die als privates Upstream-Ziel erlaubt sind (SSRF-Allowlist).
+- Tenants haben `allowed_upstream_hosts`: Hosts, `*.domains` oder CIDRs, die als privates Upstream-Ziel erlaubt sind (SSRF-Allowlist; **primäre Pflegestelle**, ab Werk leer).
 - Der Superadmin hat `tenant_id = NULL` und sieht alles.
 - Andere Benutzer sehen nur Daten ihres Tenants (Listen und Stats sind gefiltert; fremde Ressourcen liefern 404).
 

@@ -47,7 +47,7 @@ cache:
 security:
   upstream:
     allow_private: false      # private/Loopback-Upstreams global erlauben (unsicher)
-    allowed_hosts: []         # CIDRs/Hosts/`*.domains`, die als Upstream dürfen (z. B. ["10.0.0.0/8"])
+    allowed_hosts: []         # optional/global; bevorzugt pro Tenant pflegen (GUI → Tenants → Upstream-Allowliste)
   auto_ban_404:
     enabled: true
     threshold: 50
@@ -161,7 +161,7 @@ Die Datenbank wird beim Start automatisch migriert (`AutoMigrate`).
 - MFA für alle GUI-Benutzer aktivieren; Deaktivierung erfordert Passwort
 - Login-Lockout (3 Versuche/10 min pro IP+E-Mail), Refresh-Rotation mit Diebstahl-Erkennung, Reauth für sensible Benutzeränderungen
 - GUI-Zugriffsschutz (eigene IP-Listen + GeoIP) unter Settings → GUI-Security; Loopback bleibt immer erlaubt
-- Upstreams SSRF-geprüft: private Ziele nur über `security.upstream.allowed_hosts` bzw. Tenant-Allowlist; die Prüfung läuft bei jedem Request live erneut (DNS-Recheck, gecacht) – auch ein manipulierter DB-Eintrag oder DNS-Rebinding kommt nicht durch
+- Upstreams SSRF-geprüft: private Ziele nur über die Tenant-Allowlist (GUI → Tenants → Upstream-Allowliste) bzw. optional `security.upstream.allowed_hosts`; die Prüfung läuft bei jedem Request live erneut (DNS-Recheck, gecacht) und liest die Tenant-Liste alle 60 s neu – auch ein manipulierter DB-Eintrag oder DNS-Rebinding kommt nicht durch
 - Unbekannte SNI-Namen erhalten bewusst ein selbstsigniertes Default-Zertifikat (Admin-GUI auf IP/Eigabe bleibt so erreichbar)
 - Regelmäßige Backups von DB, Config und Zertifikaten
 - `jwt_secret`, `session_secret` und DB-Passwort geheim halten

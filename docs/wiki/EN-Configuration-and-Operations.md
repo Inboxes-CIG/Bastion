@@ -47,7 +47,7 @@ cache:
 security:
   upstream:
     allow_private: false      # allow private/loopback upstreams globally (unsafe)
-    allowed_hosts: []         # CIDRs/hosts/`*.domains` permitted as upstreams (e.g. ["10.0.0.0/8"])
+    allowed_hosts: []         # optional/global; prefer per-tenant management (GUI → Tenants → upstream allowlist)
   auto_ban_404:
     enabled: true
     threshold: 50
@@ -162,7 +162,7 @@ The database is migrated automatically on startup (`AutoMigrate`).
 - Enable MFA for all GUI users; disabling it requires the password
 - Login lockout (3 attempts/10 min per IP+email), refresh rotation with theft detection, re-auth for sensitive user changes
 - GUI access control (dedicated IP lists + GeoIP) under Settings → GUI-Security; loopback is always allowed
-- Upstreams are SSRF-validated: private targets only via `security.upstream.allowed_hosts` or the tenant allowlist; the check re-runs live on every request (cached DNS re-resolution), so tampered DB rows or DNS rebinding cannot slip through
+- Upstreams are SSRF-validated: private targets only via the tenant allowlist (GUI → Tenants → upstream allowlist) or the optional global `security.upstream.allowed_hosts`; the check re-runs live on every request (cached DNS re-resolution) and re-reads the tenant list every 60 s, so tampered DB rows or DNS rebinding cannot slip through
 - Unknown SNI names deliberately receive a self-signed default certificate (keeps the admin GUI reachable by IP)
 - Back up DB, config and certificates regularly
 - Keep `jwt_secret`, `session_secret` and the DB password secret

@@ -144,7 +144,7 @@ Payload:
 
 `null` = inherit from site/template. The prefix is normalized (`/api/` → `/api`).
 
-> **Upstream protection (SSRF):** `upstream_url` is validated on save **and on every request** (hostnames are re-resolved with a short DNS cache): only `http`/`https`; no loopback, link-local, CGNAT or RFC1918 targets and no hostnames that resolve to private addresses. Exceptions: `security.upstream.allow_private: true`, the global `security.upstream.allowed_hosts` list, or the tenant allowlist `allowed_upstream_hosts` (hosts, `*.domain` or CIDRs). Violations are rejected with `400` (`upstream: …`); upstreams blocked in the proxy path return `502` with `block_reason=ssrf`.
+> **Upstream protection (SSRF):** `upstream_url` is validated on save **and on every request** (hostnames are re-resolved with a short DNS cache): only `http`/`https`; no loopback, link-local, CGNAT or RFC1918 targets and no hostnames that resolve to private addresses. Exceptions: the tenant allowlist `allowed_upstream_hosts` (GUI → Tenants; recommended), optionally the global `security.upstream.allowed_hosts`, or `security.upstream.allow_private: true`. Violations are rejected with `400` (`upstream: …`); upstreams blocked in the proxy path return `502` with `block_reason=ssrf`.
 
 ### Templates
 
