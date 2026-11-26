@@ -4,6 +4,7 @@ import (
 	"math"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -121,28 +122,29 @@ func (h *StatsHandler) SiteStats(c *gin.Context) {
 		InternalError(c, err.Error())
 		return
 	}
-	domains := map[string]bool{}
+	hostToDomain := map[string]string{}
 	for _, s := range sites {
-		domains[s.Domain] = true
+		hostToDomain[strings.ToLower(s.Domain)] = s.Domain
 		for _, d := range s.ExtraDomains {
-			domains[d] = true
+			hostToDomain[strings.ToLower(d)] = s.Domain
 		}
 	}
 	stats := map[string]accesslog.SiteRangeStats{}
-	if h.Log != nil && len(domains) > 0 {
-		stats = h.Log.SiteStatsSince(since, domains)
+	if h.Log != nil && len(hostToDomain) > 0 {
+		stats = h.Log.SiteStatsSince(since, hostToDomain)
 	}
 
 	type siteResp struct {
-		ID        string           `json:"id"`
-		Domain    string           `json:"domain"`
-		TenantID  string           `json:"tenant_id"`
-		Total     int64            `json:"total"`
-		Blocked   int64            `json:"blocked"`
-		Allowed   int64            `json:"allowed"`
-		BlockRate float64          `json:"block_rate"`
-		ByStatus  map[string]int64 `json:"by_status"`
-		ByReason  map[string]int64 `json:"by_reason"`
+		ID           string           `json:"id"`
+		Domain       string           `json:"domain"`
+		TenantID     string           `json:"tenant_id"`
+		ExtraDomains []string         `json:"extra_domains"`
+		Total        int64            `json:"total"`
+		Blocked      int64            `json:"blocked"`
+		Allowed      int64            `json:"allowed"`
+		BlockRate    float64          `json:"block_rate"`
+		ByStatus     map[string]int64 `json:"by_status"`
+		ByReason     map[string]int64 `json:"by_reason"`
 	}
 	out := make([]siteResp, 0, len(sites))
 	for _, s := range sites {
@@ -158,15 +160,16 @@ func (h *StatsHandler) SiteStats(c *gin.Context) {
 			rate = float64(st.Blocked) / float64(st.Total) * 100
 		}
 		out = append(out, siteResp{
-			ID:        s.ID.String(),
-			Domain:    s.Domain,
-			TenantID:  s.TenantID.String(),
-			Total:     st.Total,
-			Blocked:   st.Blocked,
-			Allowed:   st.Allowed,
-			BlockRate: math.Round(rate*10) / 10,
-			ByStatus:  st.ByStatus,
-			ByReason:  st.ByReason,
+			ID:           s.ID.String(),
+			Domain:       s.Domain,
+			TenantID:     s.TenantID.String(),
+			ExtraDomains: []string(s.ExtraDomains),
+			Total:        st.Total,
+			Blocked:      st.Blocked,
+			Allowed:      st.Allowed,
+			BlockRate:    math.Round(rate*10) / 10,
+			ByStatus:     st.ByStatus,
+			ByReason:     st.ByReason,
 		})
 	}
 	sort.Slice(out, func(i, j int) bool {

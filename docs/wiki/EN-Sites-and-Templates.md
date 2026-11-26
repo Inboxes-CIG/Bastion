@@ -130,7 +130,9 @@ The **Statistics** page (sidebar under *Sites*) renders one tile per site with:
 
 - requests, blocks and block rate for the selected range
 - status distribution (2xx/3xx/4xx/5xx)
-- the most frequent block reasons
+- the most frequent block reasons (including `blacklist` and `crowdsec` – requests blocked before site resolution are attributed via their Host header)
+
+Searching by site or **alias domain** filters the tiles; the primary domain is always shown. Status and block reasons are rendered as a table with alternating row colors.
 
 Ranges: **last 24 hours**, **last 7 days**, **last 30 days** and **all time** (full log retention). Non-superadmins only see their tenant's sites. Data comes from the daily logs in `/var/lib/bastion/logs`, not just the RAM buffer.
 

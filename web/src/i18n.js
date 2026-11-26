@@ -22,6 +22,23 @@ const en = {
   'English': 'English',
   'Sprache & Oberfläche': 'Language & interface',
 
+  // Site statistics
+  'Statistik': 'Statistics',
+  'Zeitraum': 'Time range',
+  'Letzte 24 Stunden': 'Last 24 hours',
+  'Letzte 7 Tage': 'Last 7 days',
+  'Letzte 30 Tage': 'Last 30 days',
+  'Gesamt': 'All time',
+  'Zugriffe': 'Requests',
+  'Blockiert': 'Blocked',
+  'Blockrate': 'Block rate',
+  'Blockgründe': 'Block reasons',
+  'Keine Daten im Zeitraum.': 'No data in this period.',
+  'Keine Sites vorhanden.': 'No sites yet.',
+  'Gesamt = gesamter Aufbewahrungszeitraum der Logs.': 'All time = the full log retention period.',
+  'Site oder Alias-Domain suchen...': 'Search site or alias domain...',
+  'Keine Treffer für die Suche.': 'No matches for the search.',
+
   // Error boundary
   'Etwas ist schiefgelaufen': 'Something went wrong',
   'Die Oberfläche konnte nicht geladen werden. Bitte lade die Seite neu.': 'The interface could not be loaded. Please reload the page.',

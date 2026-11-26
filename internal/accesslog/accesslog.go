@@ -512,15 +512,31 @@ type SiteRangeStats struct {
 	ByReason map[string]int64 `json:"by_reason"`
 }
 
-// SiteStatsSince aggregates log entries per site domain since the given time.
-// All retained day files are scanned (30-day retention by default); a zero
-// since means "everything retained". The domains filter is optional.
-func (l *Logger) SiteStatsSince(since time.Time, domains map[string]bool) map[string]SiteRangeStats {
+// normalizeHost lowercases a Host header and strips an optional port.
+func normalizeHost(h string) string {
+	h = strings.ToLower(strings.TrimSpace(h))
+	if strings.HasPrefix(h, "[") {
+		if i := strings.LastIndex(h, "]"); i > 0 {
+			return h[1:i]
+		}
+	}
+	if i := strings.LastIndexByte(h, ':'); i >= 0 && strings.Count(h, ":") == 1 {
+		return h[:i]
+	}
+	return h
+}
+
+// SiteStatsSince aggregates log entries per canonical site domain since the
+// given time. hostToDomain maps every hostname (primary domain and alias
+// domains, lowercase) to the site's primary domain. Entries that were blocked
+// before the site lookup (blacklist, CrowdSec) carry no Domain and are
+// attributed via their Host header. A zero since means "everything retained".
+func (l *Logger) SiteStatsSince(since time.Time, hostToDomain map[string]string) map[string]SiteRangeStats {
 	out := map[string]SiteRangeStats{}
 	l.mu.Lock()
 	dir := l.dir
 	l.mu.Unlock()
-	if dir == "" {
+	if dir == "" || len(hostToDomain) == 0 {
 		return out
 	}
 	files, _ := l.Files()
@@ -536,16 +552,20 @@ func (l *Logger) SiteStatsSince(since time.Time, domains map[string]bool) map[st
 			if json.Unmarshal(sc.Bytes(), &e) != nil {
 				continue
 			}
-			if e.Admin || e.Domain == "" {
+			if e.Admin {
 				continue
 			}
 			if !since.IsZero() && e.Time.Before(since) {
 				continue
 			}
-			if domains != nil && !domains[e.Domain] {
+			domain := hostToDomain[strings.ToLower(e.Domain)]
+			if domain == "" {
+				domain = hostToDomain[normalizeHost(e.Host)]
+			}
+			if domain == "" {
 				continue
 			}
-			st, ok := out[e.Domain]
+			st, ok := out[domain]
 			if !ok {
 				st = SiteRangeStats{ByStatus: map[string]int64{}, ByReason: map[string]int64{}}
 			}
@@ -559,7 +579,7 @@ func (l *Logger) SiteStatsSince(since time.Time, domains map[string]bool) map[st
 				}
 				st.ByReason[r]++
 			}
-			out[e.Domain] = st
+			out[domain] = st
 		}
 		_ = fh.Close()
 	}
