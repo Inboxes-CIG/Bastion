@@ -15,4 +15,11 @@ curl -fsSL "$URL" -o "$TMP/bastion.tar.gz"
 tar -xzf "$TMP/bastion.tar.gz" -C "$TMP"
 cd "$TMP"
 chmod +x install.sh
-sudo ./install.sh "$@"
+# Already root (e.g. "curl | sudo bash"): run directly. A second sudo would
+# create a new session/pty (sudo use_pty) where interactive prompts are
+# stopped by SIGTTIN and the install appears to hang.
+if [ "$(id -u)" -eq 0 ]; then
+  exec ./install.sh "$@"
+else
+  exec sudo ./install.sh "$@"
+fi

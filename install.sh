@@ -49,22 +49,46 @@ normalize_host() {
 }
 
 ask() {
-  local label="$1" def="${2:-}" value=""
-  if [ -t 0 ]; then
-    read -rp "$label${def:+ [$def]}: " value || true
-  elif [ -r /dev/tty ]; then
-    read -rp "$label${def:+ [$def]}: " value < /dev/tty || true
+  local label="$1" def="${2:-}" value="" prompt
+  prompt="$label${def:+ [$def]}: "
+  if can_prompt; then
+    if [ -t 0 ]; then
+      read -r -t 120 -p "$prompt" value || true
+    else
+      read -r -t 120 -p "$prompt" value < /dev/tty || true
+    fi
   fi
   printf '%s' "${value:-$def}"
 }
 
+# can_prompt reports whether the installer may read from a terminal. Reading
+# /dev/tty while being in a background process group stops the shell with
+# SIGTTIN (e.g. nested sudo with use_pty in a "curl | sudo bash" pipeline).
+# In that case we fall back to defaults/flags instead of hanging.
+can_prompt() {
+  if [ -t 0 ]; then
+    return 0
+  fi
+  [ -t 2 ] || return 1
+  [ -r /dev/tty ] || return 1
+  command -v ps >/dev/null 2>&1 || return 1
+  local tpgid pgid
+  tpgid=$(ps -o tpgid= -p $$ 2>/dev/null | tr -d '[:space:]')
+  pgid=$(ps -o pgid= -p $$ 2>/dev/null | tr -d '[:space:]')
+  if [ -n "$tpgid" ] && [ "$tpgid" != "-1" ] && [ -n "$pgid" ]; then
+    [ "$tpgid" = "$pgid" ] || return 1
+  fi
+  return 0
+}
+
 ask_secret() {
   local label="$1" value=""
-  if [ -t 0 ]; then
-    read -rsp "$label: " value || true
-    echo >&2
-  elif [ -r /dev/tty ]; then
-    read -rsp "$label: " value < /dev/tty || true
+  if can_prompt; then
+    if [ -t 0 ]; then
+      read -r -s -t 120 -p "$label: " value || true
+    else
+      read -r -s -t 120 -p "$label: " value < /dev/tty || true
+    fi
     echo >&2
   fi
   printf '%s' "$value"
@@ -82,6 +106,9 @@ port_in_use() {
 }
 
 echo "=== Bastion Installer ==="
+if ! can_prompt; then
+  echo "Info: Kein interaktives Terminal verfügbar – es werden Standardwerte bzw. --hostname/--admin-* verwendet."
+fi
 
 if command -v apt-get >/dev/null 2>&1; then
   apt-get update -qq
@@ -99,10 +126,14 @@ chmod 750 "$CONFIG_DIR" "$DATA_DIR" "$DATA_DIR/geoip" "$DATA_DIR/data"
 chown root:"$APP_USER" "$CONFIG_DIR"
 
 if [ -f "$BINARY" ]; then
-  cp "$BINARY" /opt/bastion/bin/bastion
-  chmod 755 /opt/bastion/bin/bastion
-  chown "$APP_USER:$APP_USER" /opt/bastion/bin/bastion
-  echo "Binary installed"
+  if [ "$(readlink -f "$BINARY" 2>/dev/null)" = "$(readlink -f /opt/bastion/bin/bastion 2>/dev/null)" ]; then
+    echo "Binary already in place"
+  else
+    cp "$BINARY" /opt/bastion/bin/bastion
+    chmod 755 /opt/bastion/bin/bastion
+    chown "$APP_USER:$APP_USER" /opt/bastion/bin/bastion
+    echo "Binary installed"
+  fi
 else
   echo "ERROR: binary not found at $BINARY"
   exit 1
@@ -174,7 +205,7 @@ if [ ! -f "$CONFIG_DIR/config.yaml" ]; then
 server:
   http_addr: ":80"
   https_addr: ":443"
-  api_addr: ":8080"
+  api_addr: "127.0.0.1:8080"
   admin_hosts:
     - "${HOSTNAME_VALUE}"
 database:

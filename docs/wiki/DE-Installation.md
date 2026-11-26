@@ -67,6 +67,7 @@ journalctl -u bastion | grep -A4 'INITIAL SUPERADMIN'
 - GUI: `https://<hostname>/` oder `https://<server-ip>/` (selbstsigniertes Zertifikat akzeptieren)
 - Das Passwort wird beim ersten Start generiert und im Journal ausgegeben, sofern keines übergeben wurde
 - Beim ersten Login erscheint ein **Pflichtdialog**, der die Passwortänderung erzwingt (`must_change_password`)
+- Der Installer fragt Hostname, Admin-E-Mail und Passwort im Terminal ab; ohne Terminal (oder bei `--hostname`/`--admin-*`) werden Standardwerte verwendet. `curl … | sudo bash` funktioniert interaktiv (kein doppeltes sudo, keine hängenden Abfragen)
 - Private/interne Upstreams: Die Upstream-Allowlist ist ab Werk leer – pro Tenant unter **Tenants → Upstream-Allowliste** eintragen (z. B. `10.0.0.0/8`)
 
 ## Upgrade
