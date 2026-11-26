@@ -56,17 +56,19 @@ export default function SiteStats() {
 
   return (
     <div className="space-y-4 max-w-7xl">
-      <div className="flex flex-col lg:flex-row lg:items-end gap-3">
-        <Field label={t('Zeitraum')} className="lg:w-64" hint={t('Gesamt = gesamter Aufbewahrungszeitraum der Logs.')}>
+      <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+        <Field label={t('Zeitraum')} className="sm:w-64">
           <Select value={range} onChange={e => setRange(e.target.value)}>
             {RANGES.map(r => <option key={r.v} value={r.v}>{t(r.label)}</option>)}
           </Select>
         </Field>
-        <Field label={t('Suche')} className="flex-1 lg:max-w-md">
+        <div className="flex-1" />
+        {data && <div className="text-xs text-slate-400 pb-2.5">{sites.length} / {data.sites.length} {t('Sites')}</div>}
+        <Field label={t('Suche')} className="sm:w-80">
           <Input value={q} onChange={e => setQ(e.target.value)} placeholder={t('Site oder Alias-Domain suchen...')} />
         </Field>
-        {data && <div className="text-xs text-slate-400 pb-2">{sites.length} / {data.sites.length} {t('Sites')}</div>}
       </div>
+      <div className="text-xs text-slate-400 -mt-2">{t('Gesamt = gesamter Aufbewahrungszeitraum der Logs.')}</div>
 
       {!data ? (
         <Spinner />
