@@ -203,7 +203,7 @@ echo "Starting installation..."
 
 if command -v apt-get >/dev/null 2>&1; then
   apt-get update -qq
-  apt-get install -y -qq postgresql postgresql-contrib curl iproute2 openssl
+  apt-get install -y -qq postgresql postgresql-contrib curl iproute2 openssl cron
 fi
 
 if ! id -u "$APP_USER" >/dev/null 2>&1; then
@@ -465,7 +465,17 @@ else
   rm -f "$CONFIG_DIR/initial-admin"
 fi
 
-(crontab -l 2>/dev/null; echo "0 3 1 * * /usr/local/bin/bastion-geoip-update.sh >> /var/log/bastion-geoip-update.log 2>&1") | sort -u | crontab -
+# Install the GeoIP refresh job. `crontab -l` fails when no crontab exists yet;
+# with `set -e` that would abort the subshell and silently install an empty
+# crontab (observed on fresh systems), so tolerate the failure explicitly.
+if command -v crontab >/dev/null 2>&1; then
+  (
+    crontab -l 2>/dev/null || true
+    echo "0 3 1 * * /usr/local/bin/bastion-geoip-update.sh >> /var/log/bastion-geoip-update.log 2>&1"
+  ) | sort -u | crontab -
+else
+  echo "WARN: crontab nicht verfügbar – der monatliche GeoIP-Update-Job wurde nicht installiert." >&2
+fi
 
 echo
 echo "=== Bastion installation complete ==="
