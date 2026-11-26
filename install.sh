@@ -278,6 +278,15 @@ if command -v cscli >/dev/null 2>&1; then
     CROWDSEC_KEY=$(cscli bouncers add "bastion-bouncer-$(date +%s)" -o raw 2>/dev/null || true)
     [ -n "$CROWDSEC_KEY" ] && echo "Created replacement CrowdSec bouncer"
   fi
+  # Bastion calls cscli as the unprivileged "bastion" service user (alerts,
+  # manual bans). It must be able to read CrowdSec's config and local machine
+  # credentials; the package ships them as 600 root:root, which makes every
+  # cscli call fail with "permission denied" (UI: "cscli alerts: exit status 1").
+  for f in /etc/crowdsec/config.yaml /etc/crowdsec/local_api_credentials.yaml; do
+    [ -f "$f" ] || continue
+    chgrp "$APP_USER" "$f" 2>/dev/null || true
+    chmod 640 "$f"
+  done
 fi
 
 # --- Config ---

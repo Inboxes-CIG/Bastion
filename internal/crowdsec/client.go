@@ -238,6 +238,15 @@ func (c *Client) Alerts(limit int) ([]Alert, error) {
 	}
 	out, err := exec.Command("cscli", "alerts", "list", "-o", "json", "--limit", fmt.Sprintf("%d", limit)).Output()
 	if err != nil {
+		// Surface cscli's stderr: the usual cause is a permission problem
+		// (the bastion service user cannot read /etc/crowdsec/config.yaml).
+		msg := ""
+		if ee, ok := err.(*exec.ExitError); ok {
+			msg = strings.TrimSpace(string(ee.Stderr))
+		}
+		if msg != "" {
+			return nil, fmt.Errorf("cscli alerts: %w: %s", err, msg)
+		}
 		return nil, fmt.Errorf("cscli alerts: %w", err)
 	}
 	if len(out) == 0 {
