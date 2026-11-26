@@ -22,9 +22,11 @@ Options:
 Environment variables:
   BASTION_HOSTNAME, BASTION_ADMIN_EMAIL, BASTION_ADMIN_PASSWORD
 
-If an option is omitted and a terminal is available, the installer asks.
-Without a terminal, the system hostname and admin@<hostname> are used and the
-password is generated and logged by Bastion on first start.
+If an option is omitted and a terminal is available, the installer asks
+everything up front, before packages are installed, and prints a summary at
+the end. A manually entered password is asked twice and never written to the
+journal; only auto-generated passwords are logged once by Bastion on first
+start.
 EOF
 }
 
@@ -116,6 +118,89 @@ if ! can_prompt; then
   echo "Info: Kein interaktives Terminal verfügbar – es werden Standardwerte bzw. --hostname/--admin-* verwendet."
 fi
 
+# --- Collect all inputs up front, before any packages are installed ---
+EXISTING_INSTALL=0
+if [ -f "$CONFIG_DIR/config.yaml" ]; then
+  EXISTING_INSTALL=1
+fi
+
+DEFAULT_HOST="$(hostname -f 2>/dev/null || hostname 2>/dev/null || echo localhost)"
+HOSTNAME_VALUE="$(normalize_host "$HOSTNAME_OPT")"
+ADMIN_EMAIL_VALUE=""
+ADMIN_PASSWORD_VALUE=""
+
+if [ "$EXISTING_INSTALL" -eq 1 ]; then
+  echo "Existing installation detected – keeping configuration and admin account."
+  if [ -z "$HOSTNAME_VALUE" ]; then
+    # Reuse the admin host from the existing config for the summary.
+    HOSTNAME_VALUE="$(sed -nE 's/^[[:space:]]*-[[:space:]]*"([^"]+)".*/\1/p' "$CONFIG_DIR/config.yaml" | head -n 1)"
+  fi
+  [ -n "$HOSTNAME_VALUE" ] || HOSTNAME_VALUE="$DEFAULT_HOST"
+else
+  if [ -z "$HOSTNAME_VALUE" ]; then
+    if can_prompt; then
+      ask "Hostname/FQDN für die Admin-Oberfläche" "$DEFAULT_HOST"
+      HOSTNAME_VALUE="$ASK_REPLY"
+    else
+      HOSTNAME_VALUE="$DEFAULT_HOST"
+    fi
+  fi
+  HOSTNAME_VALUE="$(normalize_host "$HOSTNAME_VALUE")"
+  [ -n "$HOSTNAME_VALUE" ] || HOSTNAME_VALUE="localhost"
+
+  DEFAULT_ADMIN="admin@bastion.local"
+  if printf '%s' "$HOSTNAME_VALUE" | grep -qE '^[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'; then
+    DEFAULT_ADMIN="admin@$HOSTNAME_VALUE"
+  fi
+  ADMIN_EMAIL_VALUE="$ADMIN_EMAIL_OPT"
+  if [ -z "$ADMIN_EMAIL_VALUE" ] && can_prompt; then
+    ask "Admin-E-Mail" "$DEFAULT_ADMIN"
+    ADMIN_EMAIL_VALUE="$ASK_REPLY"
+  fi
+  [ -n "$ADMIN_EMAIL_VALUE" ] || ADMIN_EMAIL_VALUE="$DEFAULT_ADMIN"
+
+  ADMIN_PASSWORD_VALUE="$ADMIN_PASSWORD_OPT"
+  if [ -z "$ADMIN_PASSWORD_VALUE" ] && can_prompt; then
+    # Ask twice and compare. An empty answer means "generate" (logged once by
+    # Bastion); a manually entered password is never written to the journal.
+    pw1=""; pw2=""
+    for _ in 1 2 3; do
+      ask_secret "Admin-Passwort (leer = automatisch generieren)"
+      pw1="$ASK_REPLY"
+      [ -z "$pw1" ] && break
+      ask_secret "Admin-Passwort wiederholen"
+      pw2="$ASK_REPLY"
+      if [ "$pw1" = "$pw2" ]; then
+        ADMIN_PASSWORD_VALUE="$pw1"
+        break
+      fi
+      echo "Passwörter stimmen nicht überein – bitte erneut eingeben." >&2
+      pw1=""
+    done
+    if [ -z "$ADMIN_PASSWORD_VALUE" ] && [ -n "$pw1" ]; then
+      echo "Keine übereinstimmende Eingabe – es wird ein Passwort generiert (siehe Journal)." >&2
+    fi
+  fi
+fi
+
+HOSTNAME_VALUE="$(normalize_host "$HOSTNAME_VALUE")"
+[ -n "$HOSTNAME_VALUE" ] || HOSTNAME_VALUE="localhost"
+PASSWORD_MANUAL=0
+if [ -n "$ADMIN_PASSWORD_VALUE" ]; then
+  PASSWORD_MANUAL=1
+fi
+
+if [ "$EXISTING_INSTALL" -eq 0 ]; then
+  echo "Admin hostname: $HOSTNAME_VALUE"
+  echo "Admin user: $ADMIN_EMAIL_VALUE"
+  if [ "$PASSWORD_MANUAL" -eq 1 ]; then
+    echo "Admin password: manuell eingegeben (wird nicht ins Journal geschrieben)"
+  else
+    echo "Admin password: wird automatisch generiert (siehe Journal)"
+  fi
+fi
+echo "Starting installation..."
+
 if command -v apt-get >/dev/null 2>&1; then
   apt-get update -qq
   apt-get install -y -qq postgresql postgresql-contrib curl iproute2 openssl
@@ -131,6 +216,13 @@ chmod 700 "$CONFIG_DIR" "$DATA_DIR/certs"
 chmod 750 "$CONFIG_DIR" "$DATA_DIR" "$DATA_DIR/geoip" "$DATA_DIR/data"
 chown root:"$APP_USER" "$CONFIG_DIR"
 
+# Stop a running instance before replacing the binary (cp otherwise fails
+# with "Text file busy"); "systemctl enable --now" starts it again below.
+if systemctl is-active --quiet bastion 2>/dev/null; then
+  echo "Stopping running Bastion service..."
+  systemctl stop bastion
+fi
+
 if [ -f "$BINARY" ]; then
   if [ "$(readlink -f "$BINARY" 2>/dev/null)" = "$(readlink -f /opt/bastion/bin/bastion 2>/dev/null)" ]; then
     echo "Binary already in place"
@@ -144,21 +236,6 @@ else
   echo "ERROR: binary not found at $BINARY"
   exit 1
 fi
-
-# --- Hostname (admin host / self-signed cert) ---
-HOSTNAME_VALUE="$(normalize_host "$HOSTNAME_OPT")"
-if [ -z "$HOSTNAME_VALUE" ]; then
-  DEFAULT_HOST="$(hostname -f 2>/dev/null || hostname 2>/dev/null || echo localhost)"
-  if [ -t 0 ] || [ -r /dev/tty ]; then
-    ask "Hostname/FQDN für die Admin-Oberfläche" "$DEFAULT_HOST"
-    HOSTNAME_VALUE="$ASK_REPLY"
-  else
-    HOSTNAME_VALUE="$DEFAULT_HOST"
-  fi
-fi
-HOSTNAME_VALUE="$(normalize_host "$HOSTNAME_VALUE")"
-[ -n "$HOSTNAME_VALUE" ] || HOSTNAME_VALUE="localhost"
-echo "Admin hostname: $HOSTNAME_VALUE"
 
 # --- CrowdSec LAPI must not occupy Bastion's API port 8080 ---
 CROWDSEC_KEY=""
@@ -286,23 +363,8 @@ else
   [ "$USER_COUNT" = "0" ] && FRESH_ADMIN=1
 fi
 
-ADMIN_EMAIL_VALUE=""
 if [ "$FRESH_ADMIN" -eq 1 ]; then
-  DEFAULT_ADMIN="admin@bastion.local"
-  if printf '%s' "$HOSTNAME_VALUE" | grep -qE '^[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'; then
-    DEFAULT_ADMIN="admin@$HOSTNAME_VALUE"
-  fi
-  ADMIN_EMAIL_VALUE="$ADMIN_EMAIL_OPT"
-  if [ -z "$ADMIN_EMAIL_VALUE" ]; then
-    ask "Admin-E-Mail" "$DEFAULT_ADMIN"
-    ADMIN_EMAIL_VALUE="$ASK_REPLY"
-  fi
-  [ -n "$ADMIN_EMAIL_VALUE" ] || ADMIN_EMAIL_VALUE="$DEFAULT_ADMIN"
-  ADMIN_PASSWORD_VALUE="$ADMIN_PASSWORD_OPT"
-  if [ -z "$ADMIN_PASSWORD_VALUE" ]; then
-    ask_secret "Admin-Passwort (leer = automatisch generieren)"
-    ADMIN_PASSWORD_VALUE="$ASK_REPLY"
-  fi
+  [ -n "$ADMIN_EMAIL_VALUE" ] || ADMIN_EMAIL_VALUE="admin@bastion.local"
 
   OLD_UMASK=$(umask)
   umask 077
@@ -379,13 +441,48 @@ fi
 
 systemctl enable --now bastion
 
+# The seed creates the initial superadmin from /etc/bastion/initial-admin on
+# first start. The bastion user cannot delete files in /etc/bastion (750
+# root:bastion), so remove the plaintext file here as root once the account
+# exists. This must not run before the seed, or the admin would never be made.
+if [ "$FRESH_ADMIN" -eq 1 ]; then
+  ADMIN_WAIT_OK=0
+  for _ in $(seq 1 30); do
+    USER_COUNT=$(sudo -u postgres psql -d waf -tAc "SELECT count(*) FROM users WHERE deleted_at IS NULL" 2>/dev/null | tr -d '[:space:]' || true)
+    if [ -n "$USER_COUNT" ] && [ "$USER_COUNT" -gt 0 ]; then
+      ADMIN_WAIT_OK=1
+      break
+    fi
+    sleep 1
+  done
+  if [ "$ADMIN_WAIT_OK" -eq 1 ]; then
+    rm -f "$CONFIG_DIR/initial-admin"
+  else
+    echo "WARN: Der Admin-Benutzer wurde noch nicht angelegt; $CONFIG_DIR/initial-admin bleibt für einen erneuten Start erhalten." >&2
+  fi
+else
+  # Existing install: drop a stale plaintext file from an earlier run.
+  rm -f "$CONFIG_DIR/initial-admin"
+fi
+
 (crontab -l 2>/dev/null; echo "0 3 1 * * /usr/local/bin/bastion-geoip-update.sh >> /var/log/bastion-geoip-update.log 2>&1") | sort -u | crontab -
 
-echo "=== Bastion installed ==="
+echo
+echo "=== Bastion installation complete ==="
 echo "Admin hostname: $HOSTNAME_VALUE"
-if [ -n "$ADMIN_EMAIL_VALUE" ]; then
+if [ "$FRESH_ADMIN" -eq 1 ] && [ -n "$ADMIN_EMAIL_VALUE" ]; then
   echo "Admin user: $ADMIN_EMAIL_VALUE"
+  if [ "$PASSWORD_MANUAL" -eq 1 ]; then
+    echo "Admin password: das bei der Installation eingegebene Passwort (wird nicht ins Journal geschrieben)"
+  else
+    echo "Admin password: automatisch generiert – siehe: journalctl -u bastion | grep -A4 INITIAL"
+  fi
+else
+  echo "Admin account: unverändert (bestehender Benutzer)"
 fi
-echo "Admin password: see journalctl -u bastion (or the password you entered)"
-echo "GUI: https://$HOSTNAME_VALUE/ (or https://<server-ip>/)"
-echo "Ports: Bastion API :8080, CrowdSec LAPI 127.0.0.1:8081"
+echo "GUI: https://$HOSTNAME_VALUE/ (oder https://<server-ip>/)"
+echo "API: http://127.0.0.1:8080/api/v1 (nur loopback), CrowdSec LAPI 127.0.0.1:8081"
+echo "Services: bastion=$(systemctl is-active bastion 2>/dev/null || true), postgresql=$(systemctl is-active postgresql 2>/dev/null || true), crowdsec=$(systemctl is-active crowdsec 2>/dev/null || true)"
+echo "Config: $CONFIG_DIR/config.yaml"
+echo "Data:   $DATA_DIR"
+echo "Logs:   journalctl -u bastion -f"

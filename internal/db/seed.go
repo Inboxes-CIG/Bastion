@@ -106,8 +106,10 @@ func Seed(d *gorm.DB) (SeedResult, error) {
 	if init, ok := readInitialAdmin(InitialAdminPath); ok {
 		email := strings.TrimSpace(init.Email)
 		password := init.Password
+		generated := false
 		if password == "" {
 			password = generateInitialPassword()
+			generated = true
 		}
 
 		var existing User
@@ -131,7 +133,11 @@ func Seed(d *gorm.DB) (SeedResult, error) {
 			}
 			log.Printf("seeded superadmin: %s", email)
 			_ = os.Remove(InitialAdminPath)
-			return SeedResult{Email: email, Password: password}, nil
+			if generated {
+				return SeedResult{Email: email, Password: password}, nil
+			}
+			// Manually entered password: never return it for logging.
+			return SeedResult{Email: email}, nil
 
 		case err != nil:
 			return SeedResult{}, err
@@ -153,7 +159,11 @@ func Seed(d *gorm.DB) (SeedResult, error) {
 				}
 				log.Printf("restored superadmin: %s", email)
 				_ = os.Remove(InitialAdminPath)
-				return SeedResult{Email: email, Password: password}, nil
+				if generated {
+					return SeedResult{Email: email, Password: password}, nil
+				}
+				// Manually entered password: never return it for logging.
+				return SeedResult{Email: email}, nil
 			}
 			// Existing active account: never reset its password from a one-time file.
 			_ = os.Remove(InitialAdminPath)

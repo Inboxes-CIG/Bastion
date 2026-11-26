@@ -62,8 +62,11 @@ func TestSeedInitialAdmin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Email != "initial@example.com" || res.Password != "Initial123!" {
+	if res.Email != "initial@example.com" {
 		t.Fatalf("result = %+v", res)
+	}
+	if res.Password != "" {
+		t.Fatalf("manual password must not be returned for logging: %q", res.Password)
 	}
 	var u User
 	if err := d.Where("email = ?", "initial@example.com").First(&u).Error; err != nil {
