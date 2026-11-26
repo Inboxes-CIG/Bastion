@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard.jsx'
 import Logs from './pages/Logs.jsx'
 import Sites from './pages/Sites.jsx'
 import SiteDetail from './pages/SiteDetail.jsx'
+import SiteStats from './pages/SiteStats.jsx'
 import Templates from './pages/Templates.jsx'
 import Certificates from './pages/Certificates.jsx'
 import Users from './pages/Users.jsx'
@@ -23,6 +24,7 @@ export default function App() {
           <Route index element={<Dashboard />} />
           <Route path="logs" element={<Logs />} />
           <Route path="sites" element={<Sites />} />
+          <Route path="sites/stats" element={<SiteStats />} />
           <Route path="sites/:id" element={<SiteDetail />} />
           <Route path="templates" element={<Templates />} />
           <Route path="certificates" element={<Certificates />} />

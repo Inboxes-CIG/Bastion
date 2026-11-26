@@ -8,6 +8,7 @@ import { t } from '../i18n.js'
 const NAV = [
   { to: '/', label: 'Dashboard', icon: 'dashboard', end: true },
   { to: '/sites', label: 'Sites', icon: 'sites' },
+  { to: '/sites/stats', label: 'Statistik', icon: 'stats' },
   { to: '/logs', label: 'Logs', icon: 'clock' },
   { to: '/templates', label: 'Templates', icon: 'templates' },
   { to: '/certificates', label: 'Certificates', icon: 'certs' },
@@ -21,6 +22,7 @@ const NAV = [
 
 function titleFor(path) {
   if (path === '/') return 'Dashboard'
+  if (path === '/sites/stats') return 'Statistik'
   if (path.startsWith('/sites')) return 'Sites'
   if (path.startsWith('/logs')) return 'Logs'
   if (path.startsWith('/templates')) return 'Templates'

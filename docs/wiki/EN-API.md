@@ -235,8 +235,11 @@ Payload:
 | GET | `/logs/files` | Available daily files (superadmin) |
 | GET | `/audit` | Audit log (search includes `details`) |
 | GET | `/stats` | Dashboard data |
+| GET | `/stats/sites` | Per-site statistics (`range=24h\|7d\|30d\|all`) |
 | GET | `/version` | Installed/latest version |
 | GET | `/admin/info` | Admin hosts/info |
+
+`/stats/sites` returns per-site (tenant-filtered for non-superadmins) requests, blocks, block rate, status distribution and block reasons for the selected range; `all` = the full log retention period.
 
 `/logs`, `/stats` and `/audit` are **tenant-scoped**: non-superadmins only see entries and counters of their own tenant's sites; `/logs?file=…` (daily files) and system metrics are superadmin-only.
 

@@ -124,6 +124,16 @@ If **Force HTTPS** is enabled for a site or template (default), HTTP requests ar
 
 Admin hosts and IP addresses are **always** redirected to HTTPS, regardless of the site setting.
 
+## Statistics (Sites → Statistics)
+
+The **Statistics** page (sidebar under *Sites*) renders one tile per site with:
+
+- requests, blocks and block rate for the selected range
+- status distribution (2xx/3xx/4xx/5xx)
+- the most frequent block reasons
+
+Ranges: **last 24 hours**, **last 7 days**, **last 30 days** and **all time** (full log retention). Non-superadmins only see their tenant's sites. Data comes from the daily logs in `/var/lib/bastion/logs`, not just the RAM buffer.
+
 ## Delete, disable and cache
 
 - **Delete site** removes it (soft delete). The cache is **not** cleared automatically.

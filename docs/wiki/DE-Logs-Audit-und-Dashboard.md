@@ -38,7 +38,9 @@ JSONL-Felder:
 - Zusätzlich ein In-Memory-Ringpuffer (`logging.max_memory`, Standard 10000) für schnelle Abfragen
 - Admin-Requests werden protokolliert, aber aus den Site-Statistiken ausgeschlossen
 
-### Logs in der GUI
+### Logs
+
+Für aggregierte Auswertungen je Site (Zugriffe, Blocks, Blockgründe, Zeitraum 24h/7d/30d/gesamt) siehe **Sites → Statistik**. in der GUI
 
 **Logs** mit Filtern:
 

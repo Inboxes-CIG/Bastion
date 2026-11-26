@@ -38,7 +38,9 @@ JSONL fields:
 - An in-memory ring buffer (`logging.max_memory`, default 10000) for fast queries
 - Admin requests are logged but excluded from site statistics
 
-### Logs in the GUI
+### Logs
+
+For aggregated per-site analysis (requests, blocks, block reasons, ranges 24h/7d/30d/all) see **Sites → Statistics**. in the GUI
 
 **Logs** with filters:
 

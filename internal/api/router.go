@@ -126,6 +126,7 @@ func NewRouter(d Deps) *gin.Engine {
 			protected.POST("/auth/mfa/enable", authH.MFAEnable)
 			protected.POST("/auth/mfa/disable", authH.MFADisable)
 			protected.GET("/stats", statsH.Get)
+			protected.GET("/stats/sites", statsH.SiteStats)
 			protected.GET("/admin/info", adminH.Info)
 
 			// Admin GUI access policy (superadmin only)

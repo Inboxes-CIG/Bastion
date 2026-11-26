@@ -1,6 +1,8 @@
 package api
 
 import (
+	"math"
+	"sort"
 	"strconv"
 	"time"
 
@@ -85,6 +87,99 @@ func (h *StatsHandler) Get(c *gin.Context) {
 	}
 	if super {
 		resp["system"] = system.Snapshot()
+	}
+	OK(c, resp)
+}
+
+func (h *StatsHandler) SiteStats(c *gin.Context) {
+	rng := c.DefaultQuery("range", "24h")
+	now := time.Now()
+	var since time.Time
+	switch rng {
+	case "7d":
+		since = now.AddDate(0, 0, -7)
+	case "30d":
+		since = now.AddDate(0, 0, -30)
+	case "all":
+		// zero value = everything that is retained
+	default:
+		rng = "24h"
+		since = now.Add(-24 * time.Hour)
+	}
+
+	q := h.DB.Model(&db.Site{}).Select("id, domain, tenant_id, extra_domains")
+	if !isSuperadmin(c) {
+		cl := auth.ClaimsFromContext(c)
+		if cl == nil || cl.TenantID == nil {
+			OK(c, gin.H{"range": rng, "sites": []interface{}{}})
+			return
+		}
+		q = q.Where("tenant_id = ?", *cl.TenantID)
+	}
+	var sites []db.Site
+	if err := q.Find(&sites).Error; err != nil {
+		InternalError(c, err.Error())
+		return
+	}
+	domains := map[string]bool{}
+	for _, s := range sites {
+		domains[s.Domain] = true
+		for _, d := range s.ExtraDomains {
+			domains[d] = true
+		}
+	}
+	stats := map[string]accesslog.SiteRangeStats{}
+	if h.Log != nil && len(domains) > 0 {
+		stats = h.Log.SiteStatsSince(since, domains)
+	}
+
+	type siteResp struct {
+		ID        string           `json:"id"`
+		Domain    string           `json:"domain"`
+		TenantID  string           `json:"tenant_id"`
+		Total     int64            `json:"total"`
+		Blocked   int64            `json:"blocked"`
+		Allowed   int64            `json:"allowed"`
+		BlockRate float64          `json:"block_rate"`
+		ByStatus  map[string]int64 `json:"by_status"`
+		ByReason  map[string]int64 `json:"by_reason"`
+	}
+	out := make([]siteResp, 0, len(sites))
+	for _, s := range sites {
+		st := stats[s.Domain]
+		if st.ByStatus == nil {
+			st.ByStatus = map[string]int64{}
+		}
+		if st.ByReason == nil {
+			st.ByReason = map[string]int64{}
+		}
+		rate := 0.0
+		if st.Total > 0 {
+			rate = float64(st.Blocked) / float64(st.Total) * 100
+		}
+		out = append(out, siteResp{
+			ID:        s.ID.String(),
+			Domain:    s.Domain,
+			TenantID:  s.TenantID.String(),
+			Total:     st.Total,
+			Blocked:   st.Blocked,
+			Allowed:   st.Allowed,
+			BlockRate: math.Round(rate*10) / 10,
+			ByStatus:  st.ByStatus,
+			ByReason:  st.ByReason,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Total == out[j].Total {
+			return out[i].Domain < out[j].Domain
+		}
+		return out[i].Total > out[j].Total
+	})
+	resp := gin.H{"range": rng, "sites": out}
+	if since.IsZero() {
+		resp["since"] = nil
+	} else {
+		resp["since"] = since
 	}
 	OK(c, resp)
 }

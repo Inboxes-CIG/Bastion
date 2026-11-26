@@ -124,6 +124,16 @@ Ist **Force HTTPS** für eine Site oder ein Template aktiv (Default), werden HTT
 
 Admin-Hosts und IP-Adressen werden **immer** auf HTTPS umgeleitet, unabhängig von der Site-Einstellung.
 
+## Statistik (Sites → Statistik)
+
+Die Seite **Statistik** (Seitenleiste unter *Sites*) zeigt je Site eine Kachel mit:
+
+- Zugriffen, Blocks und Blockrate im gewählten Zeitraum
+- Statusverteilung (2xx/3xx/4xx/5xx)
+- den häufigsten Blockgründen
+
+Zeitraum wählbar: **letzte 24 Stunden**, **letzte 7 Tage**, **letzte 30 Tage** und **Gesamt** (gesamter Aufbewahrungszeitraum der Logs). Nicht-Superadmins sehen nur die Sites ihres Tenants. Datenquelle sind die Tages-Logs unter `/var/lib/bastion/logs`, nicht nur der RAM-Puffer.
+
 ## Löschen, Deaktivieren und Cache
 
 - **Site löschen** entfernt die Site (Soft-Delete). Der Cache wird **nicht** automatisch geleert.

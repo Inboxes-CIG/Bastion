@@ -503,6 +503,73 @@ func match(e Entry, q Query) bool {
 	return true
 }
 
+// SiteRangeStats is the per-site aggregation used by the site statistics page.
+type SiteRangeStats struct {
+	Total    int64            `json:"total"`
+	Blocked  int64            `json:"blocked"`
+	Allowed  int64            `json:"allowed"`
+	ByStatus map[string]int64 `json:"by_status"`
+	ByReason map[string]int64 `json:"by_reason"`
+}
+
+// SiteStatsSince aggregates log entries per site domain since the given time.
+// All retained day files are scanned (30-day retention by default); a zero
+// since means "everything retained". The domains filter is optional.
+func (l *Logger) SiteStatsSince(since time.Time, domains map[string]bool) map[string]SiteRangeStats {
+	out := map[string]SiteRangeStats{}
+	l.mu.Lock()
+	dir := l.dir
+	l.mu.Unlock()
+	if dir == "" {
+		return out
+	}
+	files, _ := l.Files()
+	for _, f := range files {
+		fh, err := os.Open(filepath.Join(dir, f.Name))
+		if err != nil {
+			continue
+		}
+		sc := bufio.NewScanner(fh)
+		sc.Buffer(make([]byte, 64*1024), 4*1024*1024)
+		for sc.Scan() {
+			var e Entry
+			if json.Unmarshal(sc.Bytes(), &e) != nil {
+				continue
+			}
+			if e.Admin || e.Domain == "" {
+				continue
+			}
+			if !since.IsZero() && e.Time.Before(since) {
+				continue
+			}
+			if domains != nil && !domains[e.Domain] {
+				continue
+			}
+			st, ok := out[e.Domain]
+			if !ok {
+				st = SiteRangeStats{ByStatus: map[string]int64{}, ByReason: map[string]int64{}}
+			}
+			st.Total++
+			st.ByStatus[statusLabel(e.Status)]++
+			if e.Blocked {
+				st.Blocked++
+				r := e.BlockReason
+				if r == "" {
+					r = "unknown"
+				}
+				st.ByReason[r]++
+			}
+			out[e.Domain] = st
+		}
+		_ = fh.Close()
+	}
+	for d, st := range out {
+		st.Allowed = st.Total - st.Blocked
+		out[d] = st
+	}
+	return out
+}
+
 // StatsFor aggregates persisted log entries since the given time (max 30s cache).
 func (l *Logger) StatsFor(since time.Time) Stats {
 	return l.statsFor(since, nil, true)
