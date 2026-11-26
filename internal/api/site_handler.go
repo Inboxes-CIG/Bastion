@@ -9,6 +9,7 @@ import (
 	"github.com/inboxes-cig/bastion/internal/audit"
 	"github.com/inboxes-cig/bastion/internal/auth"
 	"github.com/inboxes-cig/bastion/internal/db"
+	"github.com/inboxes-cig/bastion/internal/httpheaders"
 	"gorm.io/gorm"
 )
 
@@ -40,28 +41,34 @@ type siteRequest struct {
 	Enabled                    *bool    `json:"enabled"`
 
 	// Override fields (nil = inherit from template)
-	GeoIPEnabled       *bool     `json:"geoip_enabled"`
-	GeoIPMode          *string   `json:"geoip_mode"`
-	GeoIPCountries     *[]string `json:"geoip_countries"`
-	HTTP2Enabled       *bool     `json:"http2_enabled"`
-	HTTP3Enabled       *bool     `json:"http3_enabled"`
-	ForceHTTPS         *bool     `json:"force_https"`
-	HSTSEnabled        *bool     `json:"hsts_enabled"`
-	HSTSMaxAge         *int      `json:"hsts_max_age"`
-	WebSocketEnabled   *bool     `json:"websocket_enabled"`
-	CompressionEnabled *bool     `json:"compression_enabled"`
-	RateLimitRPS       *int      `json:"rate_limit_rps"`
-	RateLimitBurst     *int      `json:"rate_limit_burst"`
-	MaxBodySizeMB      *int      `json:"max_body_size_mb"`
-	CacheEnabled       *bool     `json:"cache_enabled"`
-	CacheTTL           *int      `json:"cache_ttl"`
-	CacheMaxObjectKB   *int      `json:"cache_max_object_kb"`
-	AuthEnabled        *bool     `json:"auth_enabled"`
+	GeoIPEnabled       *bool             `json:"geoip_enabled"`
+	GeoIPMode          *string           `json:"geoip_mode"`
+	GeoIPCountries     *[]string         `json:"geoip_countries"`
+	HTTP2Enabled       *bool             `json:"http2_enabled"`
+	HTTP3Enabled       *bool             `json:"http3_enabled"`
+	ForceHTTPS         *bool             `json:"force_https"`
+	HSTSEnabled        *bool             `json:"hsts_enabled"`
+	HSTSMaxAge         *int              `json:"hsts_max_age"`
+	WebSocketEnabled   *bool             `json:"websocket_enabled"`
+	CompressionEnabled *bool             `json:"compression_enabled"`
+	RateLimitRPS       *int              `json:"rate_limit_rps"`
+	RateLimitBurst     *int              `json:"rate_limit_burst"`
+	MaxBodySizeMB      *int              `json:"max_body_size_mb"`
+	CacheEnabled       *bool             `json:"cache_enabled"`
+	CacheTTL           *int              `json:"cache_ttl"`
+	CacheMaxObjectKB   *int              `json:"cache_max_object_kb"`
+	AuthEnabled        *bool             `json:"auth_enabled"`
+	CustomHeaders      map[string]string `json:"custom_headers"`
 }
 
 func (h *SiteHandler) Create(c *gin.Context) {
 	var req siteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		BadRequest(c, err.Error())
+		return
+	}
+	customHeaders, err := httpheaders.Sanitize(req.CustomHeaders)
+	if err != nil {
 		BadRequest(c, err.Error())
 		return
 	}
@@ -111,6 +118,7 @@ func (h *SiteHandler) Create(c *gin.Context) {
 		CacheTTL:                   req.CacheTTL,
 		CacheMaxObjectKB:           req.CacheMaxObjectKB,
 		AuthEnabled:                req.AuthEnabled,
+		CustomHeaders:              customHeaders,
 		Enabled:                    true,
 	}
 	if req.Enabled != nil {
@@ -187,6 +195,11 @@ func (h *SiteHandler) Update(c *gin.Context) {
 		BadRequest(c, err.Error())
 		return
 	}
+	customHeaders, err := httpheaders.Sanitize(req.CustomHeaders)
+	if err != nil {
+		BadRequest(c, err.Error())
+		return
+	}
 	if req.Domain != "" {
 		site.Domain = req.Domain
 	}
@@ -246,6 +259,7 @@ func (h *SiteHandler) Update(c *gin.Context) {
 	site.CacheTTL = req.CacheTTL
 	site.CacheMaxObjectKB = req.CacheMaxObjectKB
 	site.AuthEnabled = req.AuthEnabled
+	site.CustomHeaders = customHeaders
 
 	if !templateBelongsToTenant(h.DB, site.TemplateID, site.TenantID) {
 		BadRequest(c, "template does not belong to the tenant")
@@ -342,6 +356,7 @@ func EffectiveSiteConfig(site db.Site, tmpl *db.SiteTemplate) map[string]interfa
 	cfg["rate_limit_rps"] = getInt(site.RateLimitRPS, nil)
 	cfg["rate_limit_burst"] = getInt(site.RateLimitBurst, nil)
 	cfg["max_body_size_mb"] = getInt(site.MaxBodySizeMB, nil)
+	cfg["custom_headers"] = site.CustomHeaders
 	if tmpl != nil {
 		if site.GeoIPEnabled == nil {
 			cfg["geoip_enabled"] = tmpl.GeoIPEnabled
@@ -381,6 +396,9 @@ func EffectiveSiteConfig(site db.Site, tmpl *db.SiteTemplate) map[string]interfa
 		}
 		if site.MaxBodySizeMB == nil {
 			cfg["max_body_size_mb"] = tmpl.MaxBodySizeMB
+		}
+		if site.CustomHeaders == nil {
+			cfg["custom_headers"] = tmpl.CustomHeaders
 		}
 		if site.UpstreamURL == nil {
 			cfg["upstream_url"] = tmpl.UpstreamURL

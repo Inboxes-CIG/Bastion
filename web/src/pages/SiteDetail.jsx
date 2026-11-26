@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api, getUser } from '../api.js'
-import { Button, Input, Select, Field, Card, Toggle, Spinner, Alert, Badge, MultiSelect, Modal } from '../components/UI.jsx'
+import { Button, Input, Select, Field, Card, Toggle, Spinner, Alert, Badge, MultiSelect, Modal, Textarea } from '../components/UI.jsx'
 import Icon from '../components/Icon.jsx'
 import { t } from '../i18n.js'
 
@@ -13,6 +13,7 @@ function emptyForm() {
     websocket_enabled: null, compression_enabled: null,
     rate_limit_rps: null, rate_limit_burst: null, max_body_size_mb: null,
     cache_enabled: null, cache_ttl: null, cache_max_object_kb: null, auth_enabled: null,
+    custom_headers: null,
   }
 }
 
@@ -134,6 +135,7 @@ export default function SiteDetail() {
   const [ruleForm, setRuleForm] = useState({ kind:'allow', value:'', note:'' })
   const [ruleEditing, setRuleEditing] = useState(null)
   const [ruleErr, setRuleErr] = useState('')
+  const [customHeadersText, setCustomHeadersText] = useState('{}')
 
   const applySite = (s) => {
     setForm({
@@ -145,7 +147,9 @@ export default function SiteDetail() {
       compression_enabled: s.compression_enabled, rate_limit_rps: s.rate_limit_rps, rate_limit_burst: s.rate_limit_burst,
       max_body_size_mb: s.max_body_size_mb,
       cache_enabled: s.cache_enabled, cache_ttl: s.cache_ttl, cache_max_object_kb: s.cache_max_object_kb, auth_enabled: s.auth_enabled,
+      custom_headers: s.custom_headers ?? null,
     })
+    setCustomHeadersText(JSON.stringify(s.custom_headers || {}, null, 2))
   }
 
   const loadSite = () => {
@@ -272,8 +276,21 @@ export default function SiteDetail() {
   const save = async () => {
     setErr(''); setSaving(true)
     try {
+      let customHeaders = null
+      if (form.custom_headers !== null) {
+        try {
+          customHeaders = JSON.parse(customHeadersText || '{}')
+        } catch {
+          setErr(t('Ungültiges JSON für Custom Headers')); setSaving(false); return
+        }
+        if (customHeaders === null || typeof customHeaders !== 'object' || Array.isArray(customHeaders) ||
+            Object.values(customHeaders).some(v => typeof v !== 'string')) {
+          setErr(t('Custom Headers müssen ein JSON-Objekt mit String-Werten sein')); setSaving(false); return
+        }
+      }
       const payload = {
         ...form,
+        custom_headers: customHeaders,
         extra_domains: (form.extra_domains||'').split(',').map(x=>x.trim()).filter(Boolean),
         template_id: form.template_id || null,
         cert_id: form.cert_id || null,
@@ -631,6 +648,29 @@ export default function SiteDetail() {
               <InheritNumber label={t('Rate Limit RPS')} value={form.rate_limit_rps} onChange={v=>setForm({...form,rate_limit_rps:v})} templateValue={tmpl?.rate_limit_rps} />
               <InheritNumber label={t('Rate Limit Burst')} value={form.rate_limit_burst} onChange={v=>setForm({...form,rate_limit_burst:v})} templateValue={tmpl?.rate_limit_burst} />
               <InheritNumber label={t('Max Body Size (MB)')} value={form.max_body_size_mb} onChange={v=>setForm({...form,max_body_size_mb:v})} templateValue={tmpl?.max_body_size_mb} />
+              <div className="sm:col-span-2">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-sm text-slate-700">{t('Eigene Response-Header (JSON)')}</label>
+                  <select value={form.custom_headers === null ? 'inherit' : 'on'}
+                    onChange={e => {
+                      if (e.target.value === 'inherit') {
+                        setForm({...form, custom_headers: null})
+                      } else {
+                        const start = form.custom_headers ?? tmpl?.custom_headers ?? {}
+                        setForm({...form, custom_headers: start})
+                        setCustomHeadersText(JSON.stringify(start, null, 2))
+                      }
+                    }}
+                    className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30">
+                    <option value="inherit">{t('Inherit')}</option>
+                    <option value="on">{t('On')}</option>
+                  </select>
+                </div>
+                {form.custom_headers === null
+                  ? <div className="text-sm text-slate-400 px-1 py-1.5">{tmpl?.custom_headers ? JSON.stringify(tmpl.custom_headers) : '—'}</div>
+                  : <Textarea value={customHeadersText} onChange={e=>setCustomHeadersText(e.target.value)} rows={4} placeholder='{"X-Robots-Tag":"noindex"}' />}
+                <div className="text-xs text-slate-400 mt-1">{t('JSON-Objekt, z. B. {"X-Robots-Tag": "noindex"}; leer = keine Header.')}</div>
+              </div>
             </div>
           )}
         </div>

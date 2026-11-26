@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -24,6 +25,7 @@ import (
 	"github.com/inboxes-cig/bastion/internal/crowdsec"
 	"github.com/inboxes-cig/bastion/internal/db"
 	"github.com/inboxes-cig/bastion/internal/geoip"
+	"github.com/inboxes-cig/bastion/internal/httpheaders"
 	"github.com/inboxes-cig/bastion/internal/iplist"
 	"github.com/inboxes-cig/bastion/internal/netguard"
 	"github.com/inboxes-cig/bastion/internal/ratelimit"
@@ -34,28 +36,36 @@ import (
 )
 
 type Server struct {
-	DB                *gorm.DB
-	Certs             *cert.Manager
-	GeoIP             *geoip.Lookup
-	CrowdSec          *crowdsec.Client
-	Log               *accesslog.Logger
-	IPList            *iplist.List
-	RateLimiter       *ratelimit.Limiter
-	Cache             *cache.Cache
-	HTTP3Enabled      bool
-	Access            *siteaccess.Cache
-	Lockout           *siteaccess.Lockout
-	AutoBan            *autoban.Detector
-	AdminAccess        *adminaccess.Cache
-	InsecureTransport  *http.Transport
-	HTTPAddr           string
-	HTTPSAddr          string
-	AdminHosts         map[string]bool
+	DB                   *gorm.DB
+	Certs                *cert.Manager
+	GeoIP                *geoip.Lookup
+	CrowdSec             *crowdsec.Client
+	Log                  *accesslog.Logger
+	IPList               *iplist.List
+	RateLimiter          *ratelimit.Limiter
+	Cache                *cache.Cache
+	HTTP3Enabled         bool
+	Access               *siteaccess.Cache
+	Lockout              *siteaccess.Lockout
+	AutoBan              *autoban.Detector
+	AdminAccess          *adminaccess.Cache
+	InsecureTransport    *http.Transport
+	HTTPAddr             string
+	HTTPSAddr            string
+	AdminHosts           map[string]bool
 	AllowPrivateUpstream bool
 	AllowedUpstreamHosts []string
 
 	tenantMu     sync.Mutex
 	tenantAllows map[uuid.UUID]tenantAllowEntry
+
+	h2Mu    sync.Mutex
+	h2Cache map[string]h2CacheEntry
+}
+
+type h2CacheEntry struct {
+	enabled bool
+	at      time.Time
 }
 
 type tenantAllowEntry struct {
@@ -421,6 +431,69 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 		loc = l
 	}
 
+	// Effective response options (site overrides, inherited from the template).
+	var tplHSTS, tplWS, tplCompression *bool
+	var tplHSTSMaxAge, tplMaxBody *int
+	if tmpl != nil {
+		tplHSTS = tmpl.HSTSEnabled
+		tplHSTSMaxAge = tmpl.HSTSMaxAge
+		tplWS = tmpl.WebSocketEnabled
+		tplCompression = tmpl.CompressionEnabled
+		tplMaxBody = tmpl.MaxBodySizeMB
+	}
+	hstsEnabled := effBool(site.HSTSEnabled, tplHSTS, false)
+	hstsMaxAge := effInt(site.HSTSMaxAge, tplHSTSMaxAge, 31536000)
+	if hstsMaxAge <= 0 {
+		hstsMaxAge = 31536000
+	}
+	hstsHeader := ""
+	if hstsEnabled {
+		hstsHeader = fmt.Sprintf("max-age=%d", hstsMaxAge)
+		if r.TLS != nil {
+			sw.Header().Set("Strict-Transport-Security", hstsHeader)
+		}
+	}
+	compressionEnabled := effBool(site.CompressionEnabled, tplCompression, false)
+	websocketEnabled := effBool(site.WebSocketEnabled, tplWS, true)
+	maxBodyMB := effInt(site.MaxBodySizeMB, tplMaxBody, 0)
+	customHeaders := site.CustomHeaders
+	if customHeaders == nil && tmpl != nil {
+		customHeaders = tmpl.CustomHeaders
+	}
+	httpheaders.Apply(sw.Header(), customHeaders)
+
+	// Upstream responses are copied into the same header map; clear the early
+	// values first so ModifyResponse/Add do not produce duplicates.
+	clearInjected := func() {
+		if hstsHeader != "" {
+			sw.Header().Del("Strict-Transport-Security")
+		}
+		for k := range customHeaders {
+			sw.Header().Del(k)
+		}
+	}
+
+	// WebSocket upgrades can be disabled per site (default: allowed).
+	if isWebSocketUpgrade(r) && !websocketEnabled {
+		entry.Blocked = true
+		entry.BlockReason = "websocket_disabled"
+		sw.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	// Request body limit (MB, 0 = unlimited). Content-Length is rejected up
+	// front; chunked bodies are capped while they are streamed upstream.
+	if maxBodyMB > 0 {
+		limit := int64(maxBodyMB) * 1024 * 1024
+		if r.ContentLength > limit {
+			entry.Blocked = true
+			entry.BlockReason = "body_too_large"
+			sw.WriteHeader(http.StatusRequestEntityTooLarge)
+			return
+		}
+		r.Body = http.MaxBytesReader(sw, r.Body, limit)
+	}
+
 	// Per-site/location access control (IP allow/deny + Basic Auth)
 	if s.Access != nil {
 		siteData := s.Access.Get(site.ID.String())
@@ -646,6 +719,7 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 			notModified := etagMatches(r.Header.Get("If-None-Match"), e.Header.Get("ETag")) ||
 				notModifiedSince(r.Header.Get("If-Modified-Since"), e.Header.Get("Last-Modified"))
 			if notModified && (e.Header.Get("ETag") != "" || e.Header.Get("Last-Modified") != "") {
+				clearInjected()
 				for k, vals := range e.Header {
 					for _, v := range vals {
 						sw.Header().Add(k, v)
@@ -654,9 +728,14 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 				sw.Header().Set("X-Cache", "HIT")
 				sw.Header().Set("Age", strconv.Itoa(age))
 				sw.Header().Del("Content-Length")
+				if hstsHeader != "" && r.TLS != nil {
+					sw.Header().Set("Strict-Transport-Security", hstsHeader)
+				}
+				httpheaders.Apply(sw.Header(), customHeaders)
 				sw.WriteHeader(http.StatusNotModified)
 				return
 			}
+			clearInjected()
 			for k, vals := range e.Header {
 				for _, v := range vals {
 					sw.Header().Add(k, v)
@@ -665,6 +744,10 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 			sw.Header().Set("X-Cache", "HIT")
 			sw.Header().Set("Age", strconv.Itoa(age))
 			sw.Header().Set("Content-Length", strconv.Itoa(len(e.Body)))
+			if hstsHeader != "" && r.TLS != nil {
+				sw.Header().Set("Strict-Transport-Security", hstsHeader)
+			}
+			httpheaders.Apply(sw.Header(), customHeaders)
 			sw.WriteHeader(e.Status)
 			_, _ = sw.Write(e.Body)
 			return
@@ -737,24 +820,54 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 			req.Host = upstreamHost
 		}
 	}
+	rp.ModifyResponse = func(res *http.Response) error {
+		clearInjected()
+		if hstsHeader != "" && r.TLS != nil {
+			res.Header.Set("Strict-Transport-Security", hstsHeader)
+		}
+		httpheaders.Apply(res.Header, customHeaders)
+		if compressionEnabled && compressibleContentType(res.Header.Get("Content-Type")) {
+			addVary(res.Header, "Accept-Encoding")
+		}
+		return nil
+	}
 	rp.ErrorHandler = func(rw http.ResponseWriter, req *http.Request, e error) {
+		var maxErr *http.MaxBytesError
+		if errors.As(e, &maxErr) {
+			entry.Blocked = true
+			entry.BlockReason = "body_too_large"
+			rw.WriteHeader(http.StatusRequestEntityTooLarge)
+			return
+		}
 		log.Printf("proxy error for %s: %v", host, e)
 		rw.WriteHeader(http.StatusBadGateway)
 	}
+
+	// Compression wraps the cache tee so a cached body matches the
+	// Accept-Encoding cache key. gzip is finished before the body is stored.
+	var tw *teeWriter
+	var out http.ResponseWriter = sw
 	if cacheKey != "" && s.Cache != nil {
-		tw := &teeWriter{ResponseWriter: sw, status: http.StatusOK, max: max(cacheMaxObj*1024, 4096)}
-		rp.ServeHTTP(tw, r)
-		if !tw.overflow {
-			cacheableStatus := (tw.status >= 200 && tw.status < 300 && tw.status != 206) ||
-				(tw.status >= 300 && tw.status <= 308 && tw.status != 304) || tw.status == 404 || tw.status == 410
-			if cacheableStatus && tw.Header().Get("Set-Cookie") == "" && cache.VaryAllowsCaching(tw.Header()) {
-				if ttl, ok := cache.TTLFromHeaders(tw.Header(), cacheTTL); ok {
-					s.Cache.Set(cacheKey, site.ID.String(), tw.status, tw.Header(), tw.buf.Bytes(), ttl, cacheMaxObj)
-				}
+		tw = &teeWriter{ResponseWriter: sw, status: http.StatusOK, max: max(cacheMaxObj*1024, 4096)}
+		out = tw
+	}
+	var gz *gzipResponseWriter
+	if compressionEnabled && acceptsGzip(r) && r.Method != http.MethodHead && r.Header.Get("Range") == "" && !isWebSocketUpgrade(r) {
+		gz = newGzipResponseWriter(out)
+		out = gz
+	}
+	rp.ServeHTTP(out, r)
+	if gz != nil {
+		_ = gz.Close()
+	}
+	if tw != nil && !tw.overflow {
+		cacheableStatus := (tw.status >= 200 && tw.status < 300 && tw.status != 206) ||
+			(tw.status >= 300 && tw.status <= 308 && tw.status != 304) || tw.status == 404 || tw.status == 410
+		if cacheableStatus && tw.Header().Get("Set-Cookie") == "" && cache.VaryAllowsCaching(tw.Header()) {
+			if ttl, ok := cache.TTLFromHeaders(tw.Header(), cacheTTL); ok {
+				s.Cache.Set(cacheKey, site.ID.String(), tw.status, tw.Header(), tw.buf.Bytes(), ttl, cacheMaxObj)
 			}
 		}
-	} else {
-		rp.ServeHTTP(sw, r)
 	}
 }
 
@@ -788,6 +901,120 @@ func notModifiedSince(header, lastModified string) bool {
 		return false
 	}
 	return !lm.After(ims)
+}
+
+func effBool(siteVal, tmplVal *bool, def bool) bool {
+	if siteVal != nil {
+		return *siteVal
+	}
+	if tmplVal != nil {
+		return *tmplVal
+	}
+	return def
+}
+
+func effInt(siteVal, tmplVal *int, def int) int {
+	if siteVal != nil {
+		return *siteVal
+	}
+	if tmplVal != nil {
+		return *tmplVal
+	}
+	return def
+}
+
+func isWebSocketUpgrade(r *http.Request) bool {
+	if !strings.EqualFold(strings.TrimSpace(r.Header.Get("Upgrade")), "websocket") {
+		return false
+	}
+	for _, v := range strings.Split(r.Header.Get("Connection"), ",") {
+		if strings.EqualFold(strings.TrimSpace(v), "upgrade") {
+			return true
+		}
+	}
+	return false
+}
+
+// http2EnabledForHost resolves the effective HTTP/2 setting for a TLS SNI.
+// The result is cached briefly because it is needed during the handshake,
+// before the request path can resolve the site.
+func (s *Server) http2EnabledForHost(host string) bool {
+	h := strings.ToLower(strings.SplitN(host, ":", 2)[0])
+	if h == "" {
+		return true
+	}
+	s.h2Mu.Lock()
+	if e, ok := s.h2Cache[h]; ok && time.Since(e.at) < 10*time.Second {
+		s.h2Mu.Unlock()
+		return e.enabled
+	}
+	s.h2Mu.Unlock()
+
+	enabled := true
+	if site, err := s.findSite(h); err == nil {
+		var tmpl *db.SiteTemplate
+		if site.TemplateID != nil {
+			var t db.SiteTemplate
+			if err := s.DB.First(&t, "id = ?", *site.TemplateID).Error; err == nil {
+				tmpl = &t
+			}
+		}
+		var tmplH2 *bool
+		if tmpl != nil {
+			tmplH2 = tmpl.HTTP2Enabled
+		}
+		enabled = effBool(site.HTTP2Enabled, tmplH2, true)
+	}
+	s.h2Mu.Lock()
+	if s.h2Cache == nil {
+		s.h2Cache = map[string]h2CacheEntry{}
+	}
+	s.h2Cache[h] = h2CacheEntry{enabled: enabled, at: time.Now()}
+	s.h2Mu.Unlock()
+	return enabled
+}
+
+// checkTLSClient rejects connections from blacklisted or CrowdSec-banned IPs
+// during the TLS handshake. Admin hosts are exempt to avoid locking out the UI.
+func (s *Server) checkTLSClient(hello *tls.ClientHelloInfo) error {
+	if hello.ServerName == "" || s.isAdminHost(hello.ServerName) {
+		return nil
+	}
+	ip := ""
+	if hello.Conn != nil {
+		if host, _, err := net.SplitHostPort(hello.Conn.RemoteAddr().String()); err == nil {
+			ip = host
+		}
+	}
+	blocked := false
+	allowed := false
+	reason := ""
+	if ip != "" && s.IPList != nil {
+		if s.IPList.IsDenied(ip) {
+			blocked, reason = true, "blacklist"
+		} else if s.IPList.IsAllowed(ip) {
+			allowed = true
+		}
+	}
+	if !blocked && !allowed && ip != "" && s.CrowdSec != nil && s.CrowdSec.IsBanned(ip) {
+		blocked, reason = true, "crowdsec"
+	}
+	if blocked {
+		if s.Log != nil {
+			s.Log.Record(accesslog.Entry{
+				Time:        time.Now(),
+				ClientIP:    ip,
+				Host:        hello.ServerName,
+				Method:      "-",
+				Path:        "-",
+				Status:      http.StatusForbidden,
+				Blocked:     true,
+				BlockReason: reason,
+			})
+		}
+		return fmt.Errorf("connection rejected")
+	}
+	return nil
 }
 
 func (s *Server) forceHTTPS(site *db.Site, tmpl *db.SiteTemplate) bool {
@@ -837,48 +1064,21 @@ func (s *Server) Start() error {
 
 	tlsCfg := &tls.Config{
 		GetCertificate: s.Certs.GetCertificate,
-		GetConfigForClient: func(hello *tls.ClientHelloInfo) (*tls.Config, error) {
-			// Do not risk locking out the admin UI (IP access / admin hosts).
-			if hello.ServerName == "" || s.isAdminHost(hello.ServerName) {
-				return nil, nil
-			}
-			ip := ""
-			if hello.Conn != nil {
-				if host, _, err := net.SplitHostPort(hello.Conn.RemoteAddr().String()); err == nil {
-					ip = host
-				}
-			}
-			blocked := false
-			allowed := false
-			reason := ""
-			if ip != "" && s.IPList != nil {
-				if s.IPList.IsDenied(ip) {
-					blocked, reason = true, "blacklist"
-				} else if s.IPList.IsAllowed(ip) {
-					allowed = true
-				}
-			}
-			if !blocked && !allowed && ip != "" && s.CrowdSec != nil && s.CrowdSec.IsBanned(ip) {
-				blocked, reason = true, "crowdsec"
-			}
-			if blocked {
-				if s.Log != nil {
-					s.Log.Record(accesslog.Entry{
-						Time:        time.Now(),
-						ClientIP:    ip,
-						Host:        hello.ServerName,
-						Method:      "-",
-						Path:        "-",
-						Status:      http.StatusForbidden,
-						Blocked:     true,
-						BlockReason: reason,
-					})
-				}
-				return nil, fmt.Errorf("connection rejected")
-			}
-			return nil, nil
-		},
-		MinVersion: tls.VersionTLS12,
+		MinVersion:     tls.VersionTLS12,
+		NextProtos:     []string{"h2", "http/1.1"},
+	}
+	tlsCfg.GetConfigForClient = func(hello *tls.ClientHelloInfo) (*tls.Config, error) {
+		if err := s.checkTLSClient(hello); err != nil {
+			return nil, err
+		}
+		// Per-site HTTP/2 switch: negotiate HTTP/1.1 when disabled.
+		if hello.ServerName != "" && !s.isAdminHost(hello.ServerName) && !s.http2EnabledForHost(hello.ServerName) {
+			cfg := tlsCfg.Clone()
+			cfg.GetConfigForClient = nil
+			cfg.NextProtos = []string{"http/1.1"}
+			return cfg, nil
+		}
+		return nil, nil
 	}
 	httpsSrv := &http.Server{
 		Addr:              s.HTTPSAddr,
@@ -891,6 +1091,9 @@ func (s *Server) Start() error {
 	if s.HTTP3Enabled {
 		h3TLS := tlsCfg.Clone()
 		h3TLS.NextProtos = []string{"h3"}
+		h3TLS.GetConfigForClient = func(hello *tls.ClientHelloInfo) (*tls.Config, error) {
+			return nil, s.checkTLSClient(hello)
+		}
 		h3Srv := &http3.Server{
 			Addr:      s.HTTPSAddr,
 			TLSConfig: h3TLS,

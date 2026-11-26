@@ -265,6 +265,10 @@ const en = {
   'Cache TTL (s)': 'Cache TTL (s)',
   'Cache max. Objekt (KB)': 'Cache max object (KB)',
   'Compression': 'Compression',
+  'Eigene Response-Header (JSON)': 'Custom response headers (JSON)',
+  'JSON-Objekt, z. B. {"X-Robots-Tag": "noindex"}; leer = keine Header.': 'JSON object, e.g. {"X-Robots-Tag": "noindex"}; empty = no headers.',
+  'Ungültiges JSON für Custom Headers': 'Invalid JSON for custom headers',
+  'Custom Headers müssen ein JSON-Objekt mit String-Werten sein': 'Custom headers must be a JSON object with string values',
   'Auth (Basic)': 'Auth (Basic)',
   'Upstream TLS ignorieren': 'Ignore upstream TLS',
 

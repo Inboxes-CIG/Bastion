@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { api, getUser } from '../api.js'
-import { Card, Button, Input, Select, Field, Modal, Table, Toggle, Alert, EmptyState, Spinner, MultiSelect } from '../components/UI.jsx'
+import { Card, Button, Input, Select, Field, Modal, Table, Toggle, Alert, EmptyState, Spinner, MultiSelect, Textarea } from '../components/UI.jsx'
 import Icon from '../components/Icon.jsx'
 import { t } from '../i18n.js'
 
-const empty = { name:'', description:'', tenant_id:'', upstream_url:'', upstream_host:'', upstream_insecure_skip_verify:false, geoip_enabled:false, geoip_mode:'allow', geoip_countries:[], http2_enabled:true, http3_enabled:false, force_https:true, hsts_enabled:true, hsts_max_age:31536000, websocket_enabled:false, compression_enabled:true, rate_limit_rps:0, rate_limit_burst:0, max_body_size_mb:0, cache_enabled:true, cache_ttl:60, cache_max_object_kb:256, auth_enabled:false }
+const empty = { name:'', description:'', tenant_id:'', upstream_url:'', upstream_host:'', upstream_insecure_skip_verify:false, geoip_enabled:false, geoip_mode:'allow', geoip_countries:[], http2_enabled:true, http3_enabled:false, force_https:true, hsts_enabled:true, hsts_max_age:31536000, websocket_enabled:false, compression_enabled:true, rate_limit_rps:0, rate_limit_burst:0, max_body_size_mb:0, cache_enabled:true, cache_ttl:60, cache_max_object_kb:256, auth_enabled:false, custom_headers:{} }
 
 export default function Templates() {
   const [items, setItems] = useState(null)
@@ -14,6 +14,7 @@ export default function Templates() {
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(empty)
   const [countries, setCountries] = useState([])
+  const [customHeadersText, setCustomHeadersText] = useState('{}')
 
   const cu = getUser()
   const isSuper = cu?.role === 'superadmin'
@@ -22,7 +23,7 @@ export default function Templates() {
   const load = () => api('/templates').then(d=>setItems(d.data||[])).catch(e=>setErr(e.message))
   useEffect(() => { load(); api('/tenants').then(d=>setTenants(d.data||[])).catch(()=>{}); api('/geoip/countries').then(d=>setCountries(d.data||[])).catch(()=>{}) }, [])
 
-  const openNew = () => { setEditing(null); setForm({...empty, tenant_id: myTenantId}); setOpen(true) }
+  const openNew = () => { setEditing(null); setForm({...empty, tenant_id: myTenantId}); setCustomHeadersText('{}'); setOpen(true) }
   const openEdit = (tpl) => {
     setEditing(tpl.id)
     setForm({
@@ -32,13 +33,25 @@ export default function Templates() {
       hsts_max_age:tpl.hsts_max_age??31536000, websocket_enabled:tpl.websocket_enabled??false,
       compression_enabled:tpl.compression_enabled??true, rate_limit_rps:tpl.rate_limit_rps??0,
       rate_limit_burst:tpl.rate_limit_burst??0, max_body_size_mb:tpl.max_body_size_mb??0, cache_enabled:tpl.cache_enabled, cache_ttl:tpl.cache_ttl, cache_max_object_kb:tpl.cache_max_object_kb, auth_enabled:tpl.auth_enabled??false,
+      custom_headers:tpl.custom_headers||{},
     })
+    setCustomHeadersText(JSON.stringify(tpl.custom_headers || {}, null, 2))
     setOpen(true)
   }
 
   const save = async () => {
     try {
-      const payload = { ...form, tenant_id: isSuper ? form.tenant_id : myTenantId, upstream_url: form.upstream_url || null, upstream_host: form.upstream_host || null }
+      let customHeaders = {}
+      try {
+        customHeaders = JSON.parse(customHeadersText || '{}')
+      } catch {
+        setErr(t('Ungültiges JSON für Custom Headers')); return
+      }
+      if (customHeaders === null || typeof customHeaders !== 'object' || Array.isArray(customHeaders) ||
+          Object.values(customHeaders).some(v => typeof v !== 'string')) {
+        setErr(t('Custom Headers müssen ein JSON-Objekt mit String-Werten sein')); return
+      }
+      const payload = { ...form, custom_headers: customHeaders, tenant_id: isSuper ? form.tenant_id : myTenantId, upstream_url: form.upstream_url || null, upstream_host: form.upstream_host || null }
       if (editing) await api('/templates/'+editing, { method:'PUT', body: JSON.stringify(payload) })
       else await api('/templates', { method:'POST', body: JSON.stringify(payload) })
       setOpen(false); load()
@@ -97,6 +110,9 @@ export default function Templates() {
           <Field label={t('HSTS Max Age')}><Input type="number" value={form.hsts_max_age} onChange={e=>setForm({...form,hsts_max_age:Number(e.target.value)})} /></Field>
           <Field label={t('Rate Limit RPS')}><Input type="number" value={form.rate_limit_rps} onChange={e=>setForm({...form,rate_limit_rps:Number(e.target.value)})} /></Field>
           <Field label={t('Max Body Size (MB)')}><Input type="number" value={form.max_body_size_mb} onChange={e=>setForm({...form,max_body_size_mb:Number(e.target.value)})} /></Field>
+          <Field label={t('Eigene Response-Header (JSON)')} className="sm:col-span-2" hint={t('JSON-Objekt, z. B. {"X-Robots-Tag": "noindex"}; leer = keine Header.')}>
+            <Textarea value={customHeadersText} onChange={e=>setCustomHeadersText(e.target.value)} rows={4} placeholder='{"X-Robots-Tag":"noindex"}' />
+          </Field>
           <Field label={t('Cache aktiv')}><div className="pt-2"><Toggle checked={form.cache_enabled===true} onChange={v=>setForm({...form,cache_enabled:v})} label={form.cache_enabled?t('an'):t('aus')} /></div></Field>
           <Field label={t('Cache TTL (s)')}><Input type="number" value={form.cache_ttl??''} onChange={e=>setForm({...form,cache_ttl:e.target.value===''?null:Number(e.target.value)})} /></Field>
           <Field label={t('Cache max. Objekt (KB)')}><Input type="number" value={form.cache_max_object_kb??''} onChange={e=>setForm({...form,cache_max_object_kb:e.target.value===''?null:Number(e.target.value)})} /></Field>

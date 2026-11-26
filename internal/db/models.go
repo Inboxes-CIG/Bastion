@@ -8,13 +8,13 @@ import (
 )
 
 type Tenant struct {
-	ID        uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	Name      string         `gorm:"not null" json:"name"`
-	Slug      string         `gorm:"uniqueIndex;not null" json:"slug"`
-	AllowedUpstreamHosts StringArray `gorm:"type:jsonb" json:"allowed_upstream_hosts"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	ID                   uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	Name                 string         `gorm:"not null" json:"name"`
+	Slug                 string         `gorm:"uniqueIndex;not null" json:"slug"`
+	AllowedUpstreamHosts StringArray    `gorm:"type:jsonb" json:"allowed_upstream_hosts"`
+	CreatedAt            time.Time      `json:"created_at"`
+	UpdatedAt            time.Time      `json:"updated_at"`
+	DeletedAt            gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 type Role struct {
@@ -26,51 +26,51 @@ type Role struct {
 }
 
 type User struct {
-	ID           uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	TenantID     *uuid.UUID     `gorm:"type:uuid;index" json:"tenant_id"`
-	Email        string         `gorm:"uniqueIndex;not null" json:"email"`
-	PasswordHash string         `gorm:"not null" json:"-"`
-	RoleID       uuid.UUID      `gorm:"type:uuid;not null" json:"role_id"`
-	Active       bool           `gorm:"default:true" json:"active"`
-	MustChangePassword bool    `gorm:"default:false" json:"must_change_password"`
-	MFAEnabled   bool           `gorm:"default:false" json:"mfa_enabled"`
-	MFASecret    string         `json:"-"`
-	LastLogin    *time.Time     `json:"last_login"`
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
-	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
+	ID                 uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	TenantID           *uuid.UUID     `gorm:"type:uuid;index" json:"tenant_id"`
+	Email              string         `gorm:"uniqueIndex;not null" json:"email"`
+	PasswordHash       string         `gorm:"not null" json:"-"`
+	RoleID             uuid.UUID      `gorm:"type:uuid;not null" json:"role_id"`
+	Active             bool           `gorm:"default:true" json:"active"`
+	MustChangePassword bool           `gorm:"default:false" json:"must_change_password"`
+	MFAEnabled         bool           `gorm:"default:false" json:"mfa_enabled"`
+	MFASecret          string         `json:"-"`
+	LastLogin          *time.Time     `json:"last_login"`
+	CreatedAt          time.Time      `json:"created_at"`
+	UpdatedAt          time.Time      `json:"updated_at"`
+	DeletedAt          gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 // SiteTemplate defines reusable site configuration defaults.
 type SiteTemplate struct {
-	ID          uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	TenantID    uuid.UUID  `gorm:"type:uuid;index;not null" json:"tenant_id"`
-	Name        string     `gorm:"not null" json:"name"`
-	Description string     `json:"description"`
+	ID          uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	TenantID    uuid.UUID `gorm:"type:uuid;index;not null" json:"tenant_id"`
+	Name        string    `gorm:"not null" json:"name"`
+	Description string    `json:"description"`
 
 	// Inheritable config fields
-	UpstreamURL        *string `json:"upstream_url"`
-	UpstreamHost       *string `json:"upstream_host"`
-	UpstreamInsecureSkipVerify *bool `json:"upstream_insecure_skip_verify"`
-	UpstreamAllowPrivate bool `json:"-"`
-	GeoIPEnabled       *bool   `json:"geoip_enabled"`
-	GeoIPMode          *string `json:"geoip_mode"`
-	GeoIPCountries     StringArray `gorm:"type:jsonb" json:"geoip_countries"`
-	HTTP2Enabled       *bool   `json:"http2_enabled"`
-	HTTP3Enabled       *bool   `json:"http3_enabled"`
-	ForceHTTPS         *bool   `json:"force_https"`
-	HSTSEnabled        *bool   `json:"hsts_enabled"`
-	HSTSMaxAge         *int    `json:"hsts_max_age"`
-	WebSocketEnabled   *bool   `json:"websocket_enabled"`
-	CompressionEnabled *bool   `json:"compression_enabled"`
-	RateLimitRPS       *int    `json:"rate_limit_rps"`
-	RateLimitBurst     *int    `json:"rate_limit_burst"`
-	MaxBodySizeMB      *int    `json:"max_body_size_mb"`
-	CacheEnabled       *bool   `json:"cache_enabled"`
-	CacheTTL           *int    `json:"cache_ttl"`
-	CacheMaxObjectKB   *int    `json:"cache_max_object_kb"`
-	AuthEnabled        *bool   `json:"auth_enabled"`
-	CustomHeaders      []byte  `gorm:"type:jsonb" json:"custom_headers"`
+	UpstreamURL                *string           `json:"upstream_url"`
+	UpstreamHost               *string           `json:"upstream_host"`
+	UpstreamInsecureSkipVerify *bool             `json:"upstream_insecure_skip_verify"`
+	UpstreamAllowPrivate       bool              `json:"-"`
+	GeoIPEnabled               *bool             `json:"geoip_enabled"`
+	GeoIPMode                  *string           `json:"geoip_mode"`
+	GeoIPCountries             StringArray       `gorm:"type:jsonb" json:"geoip_countries"`
+	HTTP2Enabled               *bool             `json:"http2_enabled"`
+	HTTP3Enabled               *bool             `json:"http3_enabled"`
+	ForceHTTPS                 *bool             `json:"force_https"`
+	HSTSEnabled                *bool             `json:"hsts_enabled"`
+	HSTSMaxAge                 *int              `json:"hsts_max_age"`
+	WebSocketEnabled           *bool             `json:"websocket_enabled"`
+	CompressionEnabled         *bool             `json:"compression_enabled"`
+	RateLimitRPS               *int              `json:"rate_limit_rps"`
+	RateLimitBurst             *int              `json:"rate_limit_burst"`
+	MaxBodySizeMB              *int              `json:"max_body_size_mb"`
+	CacheEnabled               *bool             `json:"cache_enabled"`
+	CacheTTL                   *int              `json:"cache_ttl"`
+	CacheMaxObjectKB           *int              `json:"cache_max_object_kb"`
+	AuthEnabled                *bool             `json:"auth_enabled"`
+	CustomHeaders              map[string]string `gorm:"serializer:json;type:jsonb" json:"custom_headers"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -78,37 +78,37 @@ type SiteTemplate struct {
 
 // Site represents a proxied site/domain.
 type Site struct {
-	ID        uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	TenantID  uuid.UUID      `gorm:"type:uuid;index;not null" json:"tenant_id"`
-	TemplateID *uuid.UUID    `gorm:"type:uuid;index" json:"template_id"`
+	ID         uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	TenantID   uuid.UUID  `gorm:"type:uuid;index;not null" json:"tenant_id"`
+	TemplateID *uuid.UUID `gorm:"type:uuid;index" json:"template_id"`
 
 	// Primary domain + extra domains (aliases)
-	Domain       string   `gorm:"not null" json:"domain"`
+	Domain       string      `gorm:"not null" json:"domain"`
 	ExtraDomains StringArray `gorm:"type:jsonb" json:"extra_domains"`
 
 	// Override fields (nil = inherit from template)
-	UpstreamURL        *string `json:"upstream_url"`
-	UpstreamHost       *string `json:"upstream_host"`
-	UpstreamInsecureSkipVerify *bool `json:"upstream_insecure_skip_verify"`
-	UpstreamAllowPrivate bool `json:"-"`
-	GeoIPEnabled       *bool   `json:"geoip_enabled"`
-	GeoIPMode          *string `json:"geoip_mode"`
-	GeoIPCountries     StringArray `gorm:"type:jsonb" json:"geoip_countries"`
-	HTTP2Enabled       *bool   `json:"http2_enabled"`
-	HTTP3Enabled       *bool   `json:"http3_enabled"`
-	ForceHTTPS         *bool   `json:"force_https"`
-	HSTSEnabled        *bool   `json:"hsts_enabled"`
-	HSTSMaxAge         *int    `json:"hsts_max_age"`
-	WebSocketEnabled   *bool   `json:"websocket_enabled"`
-	CompressionEnabled *bool   `json:"compression_enabled"`
-	RateLimitRPS       *int    `json:"rate_limit_rps"`
-	RateLimitBurst     *int    `json:"rate_limit_burst"`
-	MaxBodySizeMB      *int    `json:"max_body_size_mb"`
-	CacheEnabled       *bool   `json:"cache_enabled"`
-	CacheTTL           *int    `json:"cache_ttl"`
-	CacheMaxObjectKB   *int    `json:"cache_max_object_kb"`
-	AuthEnabled        *bool   `json:"auth_enabled"`
-	CustomHeaders      []byte  `gorm:"type:jsonb" json:"custom_headers"`
+	UpstreamURL                *string           `json:"upstream_url"`
+	UpstreamHost               *string           `json:"upstream_host"`
+	UpstreamInsecureSkipVerify *bool             `json:"upstream_insecure_skip_verify"`
+	UpstreamAllowPrivate       bool              `json:"-"`
+	GeoIPEnabled               *bool             `json:"geoip_enabled"`
+	GeoIPMode                  *string           `json:"geoip_mode"`
+	GeoIPCountries             StringArray       `gorm:"type:jsonb" json:"geoip_countries"`
+	HTTP2Enabled               *bool             `json:"http2_enabled"`
+	HTTP3Enabled               *bool             `json:"http3_enabled"`
+	ForceHTTPS                 *bool             `json:"force_https"`
+	HSTSEnabled                *bool             `json:"hsts_enabled"`
+	HSTSMaxAge                 *int              `json:"hsts_max_age"`
+	WebSocketEnabled           *bool             `json:"websocket_enabled"`
+	CompressionEnabled         *bool             `json:"compression_enabled"`
+	RateLimitRPS               *int              `json:"rate_limit_rps"`
+	RateLimitBurst             *int              `json:"rate_limit_burst"`
+	MaxBodySizeMB              *int              `json:"max_body_size_mb"`
+	CacheEnabled               *bool             `json:"cache_enabled"`
+	CacheTTL                   *int              `json:"cache_ttl"`
+	CacheMaxObjectKB           *int              `json:"cache_max_object_kb"`
+	AuthEnabled                *bool             `json:"auth_enabled"`
+	CustomHeaders              map[string]string `gorm:"serializer:json;type:jsonb" json:"custom_headers"`
 
 	// Effective (resolved) fields - computed, not stored
 	// Cert reference
@@ -133,22 +133,22 @@ type SiteLocation struct {
 	PathPrefix string    `gorm:"not null" json:"path_prefix"`
 	Enabled    bool      `gorm:"not null" json:"enabled"`
 
-	UpstreamURL        *string     `json:"upstream_url"`
-	UpstreamHost       *string     `json:"upstream_host"`
-	UpstreamInsecureSkipVerify *bool `json:"upstream_insecure_skip_verify"`
-	UpstreamAllowPrivate bool `json:"-"`
-	GeoIPEnabled       *bool       `json:"geoip_enabled"`
-	GeoIPMode          *string     `json:"geoip_mode"`
-	GeoIPCountries     StringArray `gorm:"type:jsonb" json:"geoip_countries"`
-	HTTP3Enabled       *bool       `json:"http3_enabled"`
-	RateLimitRPS       *int        `json:"rate_limit_rps"`
-	RateLimitBurst     *int        `json:"rate_limit_burst"`
-	CacheEnabled       *bool       `json:"cache_enabled"`
-	CacheTTL           *int        `json:"cache_ttl"`
-	CacheMaxObjectKB   *int        `json:"cache_max_object_kb"`
-	AuthEnabled        *bool       `json:"auth_enabled"`
-	AuthUsersMode      string      `gorm:"not null;default:inherit" json:"auth_users_mode"`
-	IPRulesMode        string      `gorm:"not null;default:inherit" json:"ip_rules_mode"`
+	UpstreamURL                *string     `json:"upstream_url"`
+	UpstreamHost               *string     `json:"upstream_host"`
+	UpstreamInsecureSkipVerify *bool       `json:"upstream_insecure_skip_verify"`
+	UpstreamAllowPrivate       bool        `json:"-"`
+	GeoIPEnabled               *bool       `json:"geoip_enabled"`
+	GeoIPMode                  *string     `json:"geoip_mode"`
+	GeoIPCountries             StringArray `gorm:"type:jsonb" json:"geoip_countries"`
+	HTTP3Enabled               *bool       `json:"http3_enabled"`
+	RateLimitRPS               *int        `json:"rate_limit_rps"`
+	RateLimitBurst             *int        `json:"rate_limit_burst"`
+	CacheEnabled               *bool       `json:"cache_enabled"`
+	CacheTTL                   *int        `json:"cache_ttl"`
+	CacheMaxObjectKB           *int        `json:"cache_max_object_kb"`
+	AuthEnabled                *bool       `json:"auth_enabled"`
+	AuthUsersMode              string      `gorm:"not null;default:inherit" json:"auth_users_mode"`
+	IPRulesMode                string      `gorm:"not null;default:inherit" json:"ip_rules_mode"`
 
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`

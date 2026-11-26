@@ -9,6 +9,7 @@ import (
 	"github.com/inboxes-cig/bastion/internal/audit"
 	"github.com/inboxes-cig/bastion/internal/auth"
 	"github.com/inboxes-cig/bastion/internal/db"
+	"github.com/inboxes-cig/bastion/internal/httpheaders"
 	"gorm.io/gorm"
 )
 
@@ -47,34 +48,40 @@ func (h *TemplateHandler) Get(c *gin.Context) {
 }
 
 type templateRequest struct {
-	TenantID                   string   `json:"tenant_id"`
-	Name                       string   `json:"name" binding:"required"`
-	Description                string   `json:"description"`
-	UpstreamURL                *string  `json:"upstream_url"`
-	UpstreamHost               *string  `json:"upstream_host"`
-	UpstreamInsecureSkipVerify *bool    `json:"upstream_insecure_skip_verify"`
-	GeoIPEnabled               *bool    `json:"geoip_enabled"`
-	GeoIPMode                  *string  `json:"geoip_mode"`
-	GeoIPCountries             []string `json:"geoip_countries"`
-	HTTP2Enabled               *bool    `json:"http2_enabled"`
-	HTTP3Enabled               *bool    `json:"http3_enabled"`
-	ForceHTTPS                 *bool    `json:"force_https"`
-	HSTSEnabled                *bool    `json:"hsts_enabled"`
-	HSTSMaxAge                 *int     `json:"hsts_max_age"`
-	WebSocketEnabled           *bool    `json:"websocket_enabled"`
-	CompressionEnabled         *bool    `json:"compression_enabled"`
-	RateLimitRPS               *int     `json:"rate_limit_rps"`
-	RateLimitBurst             *int     `json:"rate_limit_burst"`
-	MaxBodySizeMB              *int     `json:"max_body_size_mb"`
-	CacheEnabled               *bool    `json:"cache_enabled"`
-	CacheTTL                   *int     `json:"cache_ttl"`
-	CacheMaxObjectKB           *int     `json:"cache_max_object_kb"`
-	AuthEnabled                *bool    `json:"auth_enabled"`
+	TenantID                   string            `json:"tenant_id"`
+	Name                       string            `json:"name" binding:"required"`
+	Description                string            `json:"description"`
+	UpstreamURL                *string           `json:"upstream_url"`
+	UpstreamHost               *string           `json:"upstream_host"`
+	UpstreamInsecureSkipVerify *bool             `json:"upstream_insecure_skip_verify"`
+	GeoIPEnabled               *bool             `json:"geoip_enabled"`
+	GeoIPMode                  *string           `json:"geoip_mode"`
+	GeoIPCountries             []string          `json:"geoip_countries"`
+	HTTP2Enabled               *bool             `json:"http2_enabled"`
+	HTTP3Enabled               *bool             `json:"http3_enabled"`
+	ForceHTTPS                 *bool             `json:"force_https"`
+	HSTSEnabled                *bool             `json:"hsts_enabled"`
+	HSTSMaxAge                 *int              `json:"hsts_max_age"`
+	WebSocketEnabled           *bool             `json:"websocket_enabled"`
+	CompressionEnabled         *bool             `json:"compression_enabled"`
+	RateLimitRPS               *int              `json:"rate_limit_rps"`
+	RateLimitBurst             *int              `json:"rate_limit_burst"`
+	MaxBodySizeMB              *int              `json:"max_body_size_mb"`
+	CacheEnabled               *bool             `json:"cache_enabled"`
+	CacheTTL                   *int              `json:"cache_ttl"`
+	CacheMaxObjectKB           *int              `json:"cache_max_object_kb"`
+	AuthEnabled                *bool             `json:"auth_enabled"`
+	CustomHeaders              map[string]string `json:"custom_headers"`
 }
 
 func (h *TemplateHandler) Create(c *gin.Context) {
 	var req templateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		BadRequest(c, err.Error())
+		return
+	}
+	customHeaders, err := httpheaders.Sanitize(req.CustomHeaders)
+	if err != nil {
 		BadRequest(c, err.Error())
 		return
 	}
@@ -133,6 +140,7 @@ func (h *TemplateHandler) Create(c *gin.Context) {
 		CacheTTL:                   req.CacheTTL,
 		CacheMaxObjectKB:           req.CacheMaxObjectKB,
 		AuthEnabled:                req.AuthEnabled,
+		CustomHeaders:              customHeaders,
 	}
 	if err := h.DB.Create(&t).Error; err != nil {
 		BadRequest(c, err.Error())
@@ -158,6 +166,11 @@ func (h *TemplateHandler) Update(c *gin.Context) {
 	}
 	var req templateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		BadRequest(c, err.Error())
+		return
+	}
+	customHeaders, err := httpheaders.Sanitize(req.CustomHeaders)
+	if err != nil {
 		BadRequest(c, err.Error())
 		return
 	}
@@ -199,6 +212,7 @@ func (h *TemplateHandler) Update(c *gin.Context) {
 	t.CacheTTL = req.CacheTTL
 	t.CacheMaxObjectKB = req.CacheMaxObjectKB
 	t.AuthEnabled = req.AuthEnabled
+	t.CustomHeaders = customHeaders
 
 	if err := h.DB.Save(&t).Error; err != nil {
 		InternalError(c, err.Error())
