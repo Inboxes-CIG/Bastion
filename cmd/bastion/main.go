@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/inboxes-cig/bastion/internal/accesslog"
+	"github.com/inboxes-cig/bastion/internal/adminaccess"
 	"github.com/inboxes-cig/bastion/internal/autoban"
 	"github.com/inboxes-cig/bastion/internal/api"
 	"os"
@@ -85,6 +86,12 @@ func main() {
 	_ = ipL.Reload()
 	go ipL.Run(60 * time.Second)
 
+	adminAccess := adminaccess.New(database)
+	if err := adminAccess.Reload(); err != nil {
+		log.Printf("admin access policy: %v", err)
+	}
+	go adminAccess.Run(60 * time.Second)
+
 	var cs *crowdsec.Client
 	if cfg.CrowdSec.Enabled {
 		cs = crowdsec.New(cfg.CrowdSec.LAPIURL, cfg.CrowdSec.APIKey)
@@ -116,6 +123,7 @@ func main() {
 	ps.Lockout = lockout
 	ps.AllowPrivateUpstream = cfg.Security.Upstream.AllowPrivate
 	ps.AllowedUpstreamHosts = cfg.Security.Upstream.AllowedHosts
+	ps.AdminAccess = adminAccess
 
 	autoBanEnabled := true
 	if cfg.Security.AutoBan404.Enabled != nil {
@@ -258,6 +266,8 @@ func main() {
 		CORSOrigins: cfg.Server.CORSOrigins,
 		AllowPrivateUpstream: cfg.Security.Upstream.AllowPrivate,
 		AllowedUpstreamHosts: cfg.Security.Upstream.AllowedHosts,
+		AdminAccess: adminAccess,
+		GeoIP:       g,
 	})
 	go func() {
 		sig := make(chan os.Signal, 1)

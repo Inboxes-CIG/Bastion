@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/inboxes-cig/bastion/internal/accesslog"
+	"github.com/inboxes-cig/bastion/internal/adminaccess"
 	"github.com/inboxes-cig/bastion/internal/autoban"
 	"github.com/inboxes-cig/bastion/internal/cache"
 	"github.com/inboxes-cig/bastion/internal/cert"
@@ -43,6 +44,7 @@ type Server struct {
 	Access            *siteaccess.Cache
 	Lockout           *siteaccess.Lockout
 	AutoBan            *autoban.Detector
+	AdminAccess        *adminaccess.Cache
 	InsecureTransport  *http.Transport
 	HTTPAddr           string
 	HTTPSAddr          string
@@ -246,6 +248,20 @@ func silentBlock(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusForbidden)
 }
 
+// denyAdmin answers blocked admin requests: JSON for API calls, a small HTML
+// page for GUI/document requests.
+func denyAdmin(w http.ResponseWriter, r *http.Request) {
+	if strings.HasPrefix(r.URL.Path, "/api/") {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"error":"admin access denied"}`))
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusForbidden)
+	_, _ = w.Write([]byte(`<!doctype html><html lang="de"><meta charset="utf-8"><title>403 – Zugriff verweigert</title><body style="font-family:system-ui,sans-serif;background:#f8fafc;color:#1e293b;padding:3rem;text-align:center"><h1 style="font-size:1.4rem">403 – Zugriff verweigert</h1><p style="color:#64748b">Die Admin-Oberfläche ist für diese IP-Adresse bzw. Herkunft nicht freigegeben.</p></body></html>`))
+}
+
 func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	sw := &statusRecorder{ResponseWriter: w, status: 200}
@@ -280,6 +296,14 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 	if s.isAdminHost(host) {
 		entry.Domain = "(admin)"
 		entry.Admin = true
+		if s.AdminAccess != nil {
+			if ok, reason := s.AdminAccess.Check(entry.ClientIP, s.GeoIP); !ok {
+				entry.Blocked = true
+				entry.BlockReason = reason
+				denyAdmin(sw, r)
+				return
+			}
+		}
 		if strings.HasPrefix(r.URL.Path, "/assets/") || r.URL.Path == "/healthz" || r.URL.Path == "/favicon.svg" || strings.HasPrefix(r.URL.Path, "/icons") {
 			skipLog = true
 		}

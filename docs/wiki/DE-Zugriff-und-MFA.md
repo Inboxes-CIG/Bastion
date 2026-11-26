@@ -32,6 +32,16 @@ Verhalten:
 - **Allow** überspringt CrowdSec, GeoIP und Rate Limit – **nicht** den per-Site-Login.
 - Die Liste wird alle 60 Sekunden neu geladen; Änderungen über die GUI sind sofort aktiv.
 
+## GUI-Zugriffsschutz (IP + GeoIP)
+
+Die Admin-Oberfläche hat eine **eigene** Zugriffssteuerung, unabhängig von den Site-Regeln (**Settings → GUI-Security**, nur Superadmin):
+
+- **Allowlist/Blocklist der GUI**: eigene IP-/CIDR-Regeln (Tabelle `admin_ip_rules`). Ein Block hat Vorrang; sobald die Allowlist nicht leer ist, sind nur deren Einträge zugelassen.
+- **GeoIP-Policy**: Länder sperren oder nur bestimmte Länder erlauben. Leere Länderliste = keine GeoIP-Einschränkung.
+- **Loopback (127.0.0.1)** ist immer erlaubt (Health-Checks, Server-Tooling).
+- **Aussperr-Schutz**: Änderungen, die den eigenen Zugriff sperren würden, lehnt die API mit `400` ab und rollt sie zurück.
+- Änderungen erscheinen im Audit-Log als „GUI-Regel …" bzw. „GUI-GeoIP …".
+
 ## Site-IP-Regeln
 
 Pro Site unter **Site → Zugriff**:

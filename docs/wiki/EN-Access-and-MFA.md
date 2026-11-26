@@ -32,6 +32,16 @@ Behavior:
 - **Allow** skips CrowdSec, GeoIP and rate limiting — **not** the per-site login.
 - The list reloads every 60 seconds; GUI changes take effect immediately.
 
+## GUI access control (IP + GeoIP)
+
+The admin UI has its **own** access control, independent of the site rules (**Settings → GUI-Security**, superadmin only):
+
+- **GUI allow/block list**: dedicated IP/CIDR rules (table `admin_ip_rules`). A block wins; once the allowlist is non-empty only its entries are permitted.
+- **GeoIP policy**: block countries or allow only specific countries. An empty country list disables the GeoIP restriction.
+- **Loopback (127.0.0.1)** is always allowed (health checks, server tooling).
+- **Lockout guard**: changes that would block your own access are rejected with `400` and rolled back.
+- Changes are recorded in the audit log as "GUI-Regel …" / "GUI-GeoIP …".
+
 ## Site IP rules
 
 Per site under **Site → Access**:

@@ -190,6 +190,26 @@ type BanStrike struct {
 	LastAt  time.Time `json:"last_at"`
 }
 
+// AdminIPRule restricts access to the admin GUI itself (independent of the
+// per-site IP lists). Loopback is always allowed by the enforcement layer.
+type AdminIPRule struct {
+	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	Kind      string    `gorm:"not null" json:"kind"` // allow | deny
+	Value     string    `gorm:"not null" json:"value"`
+	Note      string    `json:"note"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// AdminGeoPolicy is the singleton GeoIP policy for the admin GUI.
+type AdminGeoPolicy struct {
+	ID        uuid.UUID   `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	Enabled   bool        `json:"enabled"`
+	Mode      string      `json:"mode"` // allow | block
+	Countries StringArray `gorm:"type:jsonb" json:"countries"`
+	CreatedAt time.Time   `json:"created_at"`
+	UpdatedAt time.Time   `json:"updated_at"`
+}
+
 type GeoIPRule struct {
 	ID          uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	TenantID    uuid.UUID  `gorm:"type:uuid;index;not null" json:"tenant_id"`
@@ -255,5 +275,5 @@ type RefreshToken struct {
 }
 
 func AutoMigrate(d *gorm.DB) error {
-	return d.AutoMigrate(&Tenant{}, &Role{}, &User{}, &SiteTemplate{}, &Site{}, &SiteLocation{}, &Certificate{}, &GeoIPRule{}, &IPListEntry{}, &AuditLog{}, &GoodActor{}, &SiteAuthUser{}, &SiteIPRule{}, &RefreshToken{}, &BanStrike{})
+	return d.AutoMigrate(&Tenant{}, &Role{}, &User{}, &SiteTemplate{}, &Site{}, &SiteLocation{}, &Certificate{}, &GeoIPRule{}, &IPListEntry{}, &AuditLog{}, &GoodActor{}, &SiteAuthUser{}, &SiteIPRule{}, &RefreshToken{}, &BanStrike{}, &AdminIPRule{}, &AdminGeoPolicy{})
 }

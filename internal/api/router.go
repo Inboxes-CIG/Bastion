@@ -7,11 +7,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/inboxes-cig/bastion/internal/accesslog"
+	"github.com/inboxes-cig/bastion/internal/adminaccess"
 	"github.com/inboxes-cig/bastion/internal/audit"
 	"github.com/inboxes-cig/bastion/internal/auth"
 	"github.com/inboxes-cig/bastion/internal/cache"
 	"github.com/inboxes-cig/bastion/internal/cert"
 	"github.com/inboxes-cig/bastion/internal/crowdsec"
+	"github.com/inboxes-cig/bastion/internal/geoip"
 	"github.com/inboxes-cig/bastion/internal/iplist"
 	"github.com/inboxes-cig/bastion/internal/siteaccess"
 	"github.com/inboxes-cig/bastion/internal/web"
@@ -32,6 +34,8 @@ type Deps struct {
 	CORSOrigins []string
 	AllowPrivateUpstream bool
 	AllowedUpstreamHosts []string
+	AdminAccess *adminaccess.Cache
+	GeoIP       *geoip.Lookup
 }
 
 func securityHeaders() gin.HandlerFunc {
@@ -99,6 +103,7 @@ func NewRouter(d Deps) *gin.Engine {
 	versionH := &VersionHandler{CachePath: "/var/lib/bastion/version_cache.json"}
 	accessH := &SiteAccessHandler{DB: d.DB, Access: d.Access}
 	adminH := &AdminHandler{DB: d.DB, AdminHosts: d.AdminHosts}
+	adminSecH := &AdminSecurityHandler{DB: d.DB, Access: d.AdminAccess, GeoIP: d.GeoIP}
 	iplH := &IPListHandler{DB: d.DB, IPs: d.IPList}
 	cacheH := &CacheHandler{DB: d.DB, Cache: d.Cache}
 
@@ -122,6 +127,14 @@ func NewRouter(d Deps) *gin.Engine {
 			protected.POST("/auth/mfa/disable", authH.MFADisable)
 			protected.GET("/stats", statsH.Get)
 			protected.GET("/admin/info", adminH.Info)
+
+			// Admin GUI access policy (superadmin only)
+			protected.GET("/admin/ip-rules", auth.RequireRole("superadmin"), adminSecH.ListIPRules)
+			protected.POST("/admin/ip-rules", auth.RequireRole("superadmin"), adminSecH.CreateIPRule)
+			protected.PUT("/admin/ip-rules/:id", auth.RequireRole("superadmin"), adminSecH.UpdateIPRule)
+			protected.DELETE("/admin/ip-rules/:id", auth.RequireRole("superadmin"), adminSecH.DeleteIPRule)
+			protected.GET("/admin/geo", auth.RequireRole("superadmin"), adminSecH.GetGeo)
+			protected.PUT("/admin/geo", auth.RequireRole("superadmin"), adminSecH.SetGeo)
 
 			// Local IP allow/deny lists
 			protected.GET("/cache", cacheH.Get)
