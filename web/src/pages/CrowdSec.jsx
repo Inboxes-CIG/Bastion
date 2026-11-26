@@ -30,7 +30,7 @@ export default function CrowdSec() {
     api('/crowdsec/alerts?limit=50').then(d=>setAlerts(d.data||[])).catch(e=>setErr(e.message))
     api('/crowdsec/good-actors').then(d=>setActors(d.data||[])).catch(e=>setErr(e.message))
   }
-  useEffect(() => { load(); const timer = setInterval(load, 15000); return () => clearInterval(timer) }, [])
+  useEffect(() => { load() }, [])
 
   const ban = async () => {
     setErr(''); setBusy(true)
@@ -78,13 +78,19 @@ export default function CrowdSec() {
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-        <div className="flex gap-1 px-2 border-b border-slate-100">
-          {TABS.map(tb => (
-            <button key={tb.id} onClick={()=>setTab(tb.id)}
-              className={`px-4 py-3 text-sm font-medium border-b-2 ${tab===tb.id?'border-indigo-600 text-indigo-600':'border-transparent text-slate-500 hover:text-slate-700'}`}>
-              {t(tb.label)}
-            </button>
-          ))}
+        <div className="flex items-center justify-between px-2 border-b border-slate-100">
+          <div className="flex gap-1">
+            {TABS.map(tb => (
+              <button key={tb.id} onClick={()=>setTab(tb.id)}
+                className={`px-4 py-3 text-sm font-medium border-b-2 ${tab===tb.id?'border-indigo-600 text-indigo-600':'border-transparent text-slate-500 hover:text-slate-700'}`}>
+                {t(tb.label)}
+              </button>
+            ))}
+          </div>
+          <button onClick={load} title={t('Neu laden')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 mr-2 text-sm text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-lg">
+            <Icon name="refresh" className="w-4 h-4" stroke /> {t('Neu laden')}
+          </button>
         </div>
 
         <div className="p-5">
