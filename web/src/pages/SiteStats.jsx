@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api.js'
 import { Card, Select, Field, Input, Alert, Spinner } from '../components/UI.jsx'
+import DomainList from '../components/DomainList.jsx'
 import { t } from '../i18n.js'
 
 const RANGES = [
@@ -80,8 +81,9 @@ export default function SiteStats() {
             const statusRows = STATUS_ORDER.filter(k => s.by_status && s.by_status[k]).map(k => [k, s.by_status[k]])
             const reasonRows = Object.entries(s.by_reason || {}).sort((a, b) => b[1] - a[1])
             return (
-              <Card key={s.id} title={s.domain}
-                subtitle={(s.extra_domains && s.extra_domains.length > 0 ? s.extra_domains.join(', ') : (s.total === 0 ? t('Keine Daten im Zeitraum.') : undefined))}>
+              <Card key={s.id}
+                title={<DomainList domain={s.domain} aliases={s.extra_domains||[]} />}
+                subtitle={(!s.extra_domains || s.extra_domains.length === 0) && s.total === 0 ? t('Keine Daten im Zeitraum.') : undefined}>
                 <div className="grid grid-cols-3 gap-2 mb-2">
                   <div className="rounded-lg bg-slate-50 p-2 text-center">
                     <div className="text-lg font-bold text-slate-800">{s.total}</div>

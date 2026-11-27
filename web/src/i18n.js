@@ -125,6 +125,7 @@ const en = {
   'Name': 'Name',
   'Domain': 'Domain',
   'Domains': 'Domains',
+  'Alle Domains anzeigen': 'Show all domains',
   'Benutzer': 'Users',
   'Rolle': 'Role',
   'Tenant': 'Tenant',

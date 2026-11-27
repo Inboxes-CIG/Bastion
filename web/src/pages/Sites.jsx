@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api.js'
 import { Card, Button, Badge, Table, Spinner, Alert, EmptyState } from '../components/UI.jsx'
+import DomainList from '../components/DomainList.jsx'
 import Icon from '../components/Icon.jsx'
 import { t } from '../i18n.js'
 
@@ -81,9 +82,8 @@ export default function Sites() {
             rows={filtered}
             renderRow={s => (
               <tr key={s.id} onClick={() => nav('/sites/'+s.id)} className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer">
-                <td className="px-4 py-3">
-                  <div className="font-medium text-slate-800">{s.domain}</div>
-                  {(s.extra_domains||[]).length > 0 && <div className="text-xs text-slate-400">+{s.extra_domains.join(', ')}</div>}
+                <td className="px-4 py-3 max-w-[280px]">
+                  <DomainList domain={s.domain} aliases={s.extra_domains||[]} />
                 </td>
                 <td className="px-4 py-3 text-slate-600">{s.template_id ? (templates.find(t=>t.id===s.template_id)?.name || '?') : <span className="text-slate-400">—</span>}</td>
                 <td className="px-4 py-3 text-slate-600 text-xs">{s.upstream_url || <span className="text-slate-400">{t('inherited')}</span>}</td>
