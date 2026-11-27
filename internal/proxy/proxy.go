@@ -332,8 +332,17 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 		if !skipLog && s.Log != nil {
 			s.Log.Record(entry)
 		}
-		if s.AutoBan != nil && entry.Status == 404 && !entry.Admin {
-			s.AutoBan.Observe(entry.ClientIP, entry.Status, entry.Admin, allowed)
+		if s.AutoBan != nil && !skipLog && entry.Status == http.StatusNotFound {
+			if entry.Admin {
+				// Admin hosts are normally exempt from IP blocks to avoid
+				// locking out operators, but unauthenticated 404 probes
+				// should still feed the auto-ban detector.
+				if r.Header.Get("Authorization") == "" && (s.IPList == nil || !s.IPList.IsAllowed(entry.ClientIP)) {
+					s.AutoBan.Observe(entry.ClientIP, entry.Status, false, false)
+				}
+			} else if !allowed {
+				s.AutoBan.Observe(entry.ClientIP, entry.Status, false, allowed)
+			}
 		}
 	}()
 
@@ -343,6 +352,12 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 	if s.isAdminHost(host) {
 		entry.Domain = "(admin)"
 		entry.Admin = true
+		if s.IPList != nil && s.IPList.IsAutoBanned(entry.ClientIP) {
+			entry.Blocked = true
+			entry.BlockReason = "auto_ban"
+			denyAdmin(sw, r)
+			return
+		}
 		if s.AdminAccess != nil {
 			if ok, reason := s.AdminAccess.Check(entry.ClientIP, s.GeoIP); !ok {
 				entry.Blocked = true
@@ -354,7 +369,7 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/assets/") || r.URL.Path == "/healthz" || r.URL.Path == "/favicon.svg" || strings.HasPrefix(r.URL.Path, "/icons") {
 			skipLog = true
 		}
-		if strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/healthz" {
+		if r.URL.Path == "/api" || strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/healthz" {
 			// Trustworthy client IP for the API IP allowlist: overwrite any
 			// client-supplied values with the direct peer address. The inner
 			// API trusts only X-Real-IP, never X-Forwarded-For.

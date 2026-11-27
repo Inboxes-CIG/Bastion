@@ -12,12 +12,14 @@ import (
 )
 
 type List struct {
-	db  *gorm.DB
-	mu  sync.RWMutex
+	db         *gorm.DB
+	mu         sync.RWMutex
 	allowExact map[string]bool
 	allowCIDR  []*net.IPNet
 	denyExact  map[string]bool
 	denyCIDR   []*net.IPNet
+	autoExact  map[string]bool
+	autoCIDR   []*net.IPNet
 }
 
 func New(db *gorm.DB) *List {
@@ -25,6 +27,7 @@ func New(db *gorm.DB) *List {
 		db:         db,
 		allowExact: map[string]bool{},
 		denyExact:  map[string]bool{},
+		autoExact:  map[string]bool{},
 	}
 }
 
@@ -39,7 +42,8 @@ func (l *List) Reload() error {
 	}
 	allowExact := map[string]bool{}
 	denyExact := map[string]bool{}
-	var allowCIDR, denyCIDR []*net.IPNet
+	autoExact := map[string]bool{}
+	var allowCIDR, denyCIDR, autoCIDR []*net.IPNet
 	for _, e := range entries {
 		if e.ExpiresAt != nil && e.ExpiresAt.Before(time.Now()) {
 			continue
@@ -51,6 +55,9 @@ func (l *List) Reload() error {
 					allowCIDR = append(allowCIDR, cidr)
 				} else {
 					denyCIDR = append(denyCIDR, cidr)
+					if e.Source == "auto_ban" {
+						autoCIDR = append(autoCIDR, cidr)
+					}
 				}
 			}
 			continue
@@ -63,6 +70,9 @@ func (l *List) Reload() error {
 			allowExact[ip.String()] = true
 		} else {
 			denyExact[ip.String()] = true
+			if e.Source == "auto_ban" {
+				autoExact[ip.String()] = true
+			}
 		}
 	}
 	l.mu.Lock()
@@ -70,6 +80,8 @@ func (l *List) Reload() error {
 	l.allowCIDR = allowCIDR
 	l.denyExact = denyExact
 	l.denyCIDR = denyCIDR
+	l.autoExact = autoExact
+	l.autoCIDR = autoCIDR
 	l.mu.Unlock()
 	return nil
 }
@@ -117,6 +129,19 @@ func (l *List) IsDenied(ipStr string) bool {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 	return matchIP(ip, l.denyExact, l.denyCIDR)
+}
+
+// IsAutoBanned reports whether the IP has an active 404 auto-ban entry. Admin
+// hosts are normally exempt from the global deny list, but auto-banned probes
+// should also be denied there. Allow-list checks stay in the caller.
+func (l *List) IsAutoBanned(ipStr string) bool {
+	ip := net.ParseIP(strings.TrimSpace(ipStr))
+	if ip == nil {
+		return false
+	}
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+	return matchIP(ip, l.autoExact, l.autoCIDR)
 }
 
 func Validate(value string) error {

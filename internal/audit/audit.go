@@ -72,6 +72,16 @@ func Middleware(d *gorm.DB) gin.HandlerFunc {
 		if !track {
 			return
 		}
+		// Only matched API routes with an authenticated principal are audited.
+		// Unknown paths (NoRoute) and unauthenticated probes would otherwise
+		// be recorded as if they created resources.
+		if c.FullPath() == "" {
+			return
+		}
+		cl := auth.ClaimsFromContext(c)
+		if cl == nil {
+			return
+		}
 
 		e := db.AuditLog{
 			Action:    actionFor(method),
@@ -90,17 +100,15 @@ func Middleware(d *gorm.DB) gin.HandlerFunc {
 		if e.Details == "" {
 			e.Details = describe(c, body)
 		}
-		if cl := auth.ClaimsFromContext(c); cl != nil {
-			uid := cl.UserID
-			e.UserID = &uid
-			if cl.TenantID != nil {
-				tid := *cl.TenantID
-				e.TenantID = &tid
-			}
-			var u db.User
-			if err := d.Select("email").First(&u, "id = ?", cl.UserID).Error; err == nil {
-				e.UserEmail = u.Email
-			}
+		uid := cl.UserID
+		e.UserID = &uid
+		if cl.TenantID != nil {
+			tid := *cl.TenantID
+			e.TenantID = &tid
+		}
+		var u db.User
+		if err := d.Select("email").First(&u, "id = ?", cl.UserID).Error; err == nil {
+			e.UserEmail = u.Email
 		}
 		_ = d.Create(&e).Error
 	}

@@ -22,22 +22,22 @@ import (
 )
 
 type Deps struct {
-	DB         *gorm.DB
-	JWTSecret  string
-	SessionSecret string
-	Certs      *cert.Manager
-	CrowdSec   *crowdsec.Client
-	Log        *accesslog.Logger
-	AdminHosts []string
-	IPList     *iplist.List
-	Cache      *cache.Cache
-	Access     *siteaccess.Cache
-	CORSOrigins []string
+	DB                   *gorm.DB
+	JWTSecret            string
+	SessionSecret        string
+	Certs                *cert.Manager
+	CrowdSec             *crowdsec.Client
+	Log                  *accesslog.Logger
+	AdminHosts           []string
+	IPList               *iplist.List
+	Cache                *cache.Cache
+	Access               *siteaccess.Cache
+	CORSOrigins          []string
 	AllowPrivateUpstream bool
 	AllowedUpstreamHosts []string
-	AdminAccess *adminaccess.Cache
-	GeoIP       *geoip.Lookup
-	APIKeys     *apikeys.Service
+	AdminAccess          *adminaccess.Cache
+	GeoIP                *geoip.Lookup
+	APIKeys              *apikeys.Service
 }
 
 func securityHeaders() gin.HandlerFunc {
@@ -241,8 +241,14 @@ func NewRouter(d Deps) *gin.Engine {
 		}
 	}
 
-	// SPA fallback for frontend
+	// SPA fallback for frontend. Unknown API paths must be JSON 404s instead
+	// of the SPA index, otherwise probes look like successful requests.
 	r.NoRoute(func(c *gin.Context) {
+		p := c.Request.URL.Path
+		if p == "/api" || strings.HasPrefix(p, "/api/") {
+			NotFound(c, "not found")
+			return
+		}
 		web.Handler().ServeHTTP(c.Writer, c.Request)
 	})
 
