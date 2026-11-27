@@ -33,18 +33,19 @@ async function doRefresh() {
 }
 
 export async function api(path, opts = {}) {
-  const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) }
+  const { meta, ...init } = opts
+  const headers = { 'Content-Type': 'application/json', ...(init.headers || {}) }
   const t = getToken()
   if (t) headers['Authorization'] = 'Bearer ' + t
-  let res = await fetch(BASE + path, { ...opts, headers })
+  let res = await fetch(BASE + path, { ...init, headers })
   if (res.status === 401 && getRefresh()) {
     if (!refreshing) refreshing = doRefresh().finally(() => { refreshing = null })
     const d = await refreshing
     if (d) {
-      const headers2 = { 'Content-Type': 'application/json', ...(opts.headers || {}) }
+      const headers2 = { 'Content-Type': 'application/json', ...(init.headers || {}) }
       const t2 = getToken()
       if (t2) headers2['Authorization'] = 'Bearer ' + t2
-      res = await fetch(BASE + path, { ...opts, headers: headers2 })
+      res = await fetch(BASE + path, { ...init, headers: headers2 })
     }
   }
   if (res.status === 401) {
@@ -61,6 +62,9 @@ export async function api(path, opts = {}) {
     err.code = data.code
     err.status = res.status
     throw err
+  }
+  if (meta) {
+    return { data: data.data, total: Number(res.headers.get('X-Total-Count') || 0) }
   }
   return data
 }

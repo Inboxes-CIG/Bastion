@@ -373,6 +373,16 @@ const en = {
   'Persistente Logs:': 'Persistent logs:',
   'tägliche Rotation, JSON Lines': 'daily rotation, JSON Lines',
   'Live-Ansicht ist ein In-Memory-Puffer (letzte 10.000 Einträge).': 'The live view is an in-memory buffer (last 10,000 entries).',
+  'Blockgrund': 'Block reason',
+  'z. B. crowdsec, geoip': 'e.g. crowdsec, geoip',
+  'Pro Seite': 'Per page',
+  'Seite': 'Page',
+  'von': 'of',
+  'Zurück': 'Previous',
+  'Weiter': 'Next',
+  'Erste Seite': 'First page',
+  'Letzte Seite': 'Last page',
+  'Keine Einträge auf dieser Seite.': 'No entries on this page.',
 
   // CrowdSec
   'Entscheidungen': 'Decisions',

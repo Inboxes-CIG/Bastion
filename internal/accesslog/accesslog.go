@@ -58,13 +58,15 @@ type Stats struct {
 }
 
 type Query struct {
-	Site    string
-	Blocked *bool
-	Status  int
-	Search  string
+	Site         string
+	Blocked      *bool
+	Status       int
+	Reason       string
+	Search       string
 	Limit        int
+	Offset       int
 	ExcludeAdmin bool
-	Domains map[string]bool
+	Domains      map[string]bool
 }
 
 type LogFile struct {
@@ -428,32 +430,87 @@ func (l *Logger) Files() ([]LogFile, error) {
 	return out, nil
 }
 
-func (l *Logger) QueryFile(name string, q Query) []Entry {
+func (l *Logger) QueryFile(name string, q Query) ([]Entry, int) {
 	if l.dir == "" || name == "" {
-		return nil
+		return nil, 0
 	}
 	if strings.ContainsAny(name, "/\\") || !strings.HasPrefix(name, "access-") || !strings.HasSuffix(name, ".jsonl") {
-		return nil
+		return nil, 0
 	}
+	f, err := os.Open(filepath.Join(l.dir, name))
+	if err != nil {
+		return nil, 0
+	}
+	defer f.Close()
+
 	limit := q.Limit
 	if limit <= 0 || limit > 5000 {
 		limit = 300
 	}
-	entries := readTail(filepath.Join(l.dir, name), 5000)
-	out := make([]Entry, 0, limit)
-	for i := len(entries) - 1; i >= 0; i-- {
-		if !match(entries[i], q) {
+	offset := q.Offset
+	if offset < 0 {
+		offset = 0
+	}
+
+	countMatches := func() int {
+		total := 0
+		sc := bufio.NewScanner(f)
+		sc.Buffer(make([]byte, 64*1024), 2*1024*1024)
+		for sc.Scan() {
+			var e Entry
+			if json.Unmarshal(sc.Bytes(), &e) != nil {
+				continue
+			}
+			if match(e, q) {
+				total++
+			}
+		}
+		return total
+	}
+	total := countMatches()
+	if offset >= total {
+		return []Entry{}, total
+	}
+	if _, err := f.Seek(0, 0); err != nil {
+		return []Entry{}, total
+	}
+
+	// Second pass: collect only the requested page. The file is oldest-first,
+	// but the UI paginates newest-first, so translate the reverse offset into
+	// a forward window [total-offset-limit, total-offset).
+	start := total - offset - limit
+	if start < 0 {
+		start = 0
+	}
+	end := total - offset
+	out := make([]Entry, 0, min(limit, end-start))
+	seen := 0
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 64*1024), 2*1024*1024)
+	for sc.Scan() {
+		var e Entry
+		if json.Unmarshal(sc.Bytes(), &e) != nil {
 			continue
 		}
-		out = append(out, entries[i])
-		if len(out) >= limit {
+		if !match(e, q) {
+			continue
+		}
+		if seen >= start && seen < end {
+			out = append(out, e)
+		}
+		seen++
+		if seen >= end {
 			break
 		}
 	}
-	return out
+	// Return the page newest-first.
+	for i, j := 0, len(out)-1; i < j; i, j = i+1, j-1 {
+		out[i], out[j] = out[j], out[i]
+	}
+	return out, total
 }
 
-func (l *Logger) Query(q Query) []Entry {
+func (l *Logger) Query(q Query) ([]Entry, int) {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 
@@ -461,19 +518,24 @@ func (l *Logger) Query(q Query) []Entry {
 	if limit <= 0 || limit > 1000 {
 		limit = 200
 	}
+	offset := q.Offset
+	if offset < 0 {
+		offset = 0
+	}
 	out := make([]Entry, 0, limit)
+	total := 0
 	for i := 0; i < l.count; i++ {
 		idx := (l.head - 1 - i + l.cap*2) % l.cap
 		e := l.entries[idx]
 		if !match(e, q) {
 			continue
 		}
-		out = append(out, e)
-		if len(out) >= limit {
-			break
+		if total >= offset && len(out) < limit {
+			out = append(out, e)
 		}
+		total++
 	}
-	return out
+	return out, total
 }
 
 func match(e Entry, q Query) bool {
@@ -490,6 +552,9 @@ func match(e Entry, q Query) bool {
 		return false
 	}
 	if q.Status != 0 && e.Status != q.Status {
+		return false
+	}
+	if q.Reason != "" && !strings.Contains(strings.ToLower(e.BlockReason), strings.ToLower(q.Reason)) {
 		return false
 	}
 	if q.Search != "" {

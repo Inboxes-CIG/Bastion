@@ -208,6 +208,7 @@ func (h *StatsHandler) Logs(c *gin.Context) {
 	q := accesslog.Query{
 		Site:         c.Query("site"),
 		Search:       c.Query("q"),
+		Reason:       c.Query("reason"),
 		ExcludeAdmin: c.Query("hide_admin") == "true",
 	}
 	if !isSuperadmin(c) {
@@ -232,13 +233,22 @@ func (h *StatsHandler) Logs(c *gin.Context) {
 			q.Limit = n
 		}
 	}
+	if o := c.Query("offset"); o != "" {
+		if n, err := strconv.Atoi(o); err == nil && n > 0 {
+			q.Offset = n
+		}
+	}
 	if file := c.Query("file"); file != "" {
 		if !isSuperadmin(c) {
 			Forbidden(c, "forbidden")
 			return
 		}
-		OK(c, h.Log.QueryFile(file, q))
+		entries, total := h.Log.QueryFile(file, q)
+		c.Header("X-Total-Count", strconv.Itoa(total))
+		OK(c, entries)
 		return
 	}
-	OK(c, h.Log.Query(q))
+	entries, total := h.Log.Query(q)
+	c.Header("X-Total-Count", strconv.Itoa(total))
+	OK(c, entries)
 }
