@@ -12,7 +12,8 @@ function emptyForm() {
     http2_enabled: null, http3_enabled: null, force_https: null, hsts_enabled: null, hsts_max_age: null,
     websocket_enabled: null, compression_enabled: null,
     rate_limit_rps: null, rate_limit_burst: null, max_body_size_mb: null,
-    cache_enabled: null, cache_ttl: null, cache_max_object_kb: null, auth_enabled: null,
+    cache_enabled: null, cache_ttl: null, cache_max_object_kb: null,
+    cache_force: null, cache_allow_cookie: null, auth_enabled: null,
     custom_headers: null,
   }
 }
@@ -146,7 +147,8 @@ export default function SiteDetail() {
       hsts_enabled: s.hsts_enabled, hsts_max_age: s.hsts_max_age, websocket_enabled: s.websocket_enabled,
       compression_enabled: s.compression_enabled, rate_limit_rps: s.rate_limit_rps, rate_limit_burst: s.rate_limit_burst,
       max_body_size_mb: s.max_body_size_mb,
-      cache_enabled: s.cache_enabled, cache_ttl: s.cache_ttl, cache_max_object_kb: s.cache_max_object_kb, auth_enabled: s.auth_enabled,
+      cache_enabled: s.cache_enabled, cache_ttl: s.cache_ttl, cache_max_object_kb: s.cache_max_object_kb,
+      cache_force: s.cache_force, cache_allow_cookie: s.cache_allow_cookie, auth_enabled: s.auth_enabled,
       custom_headers: s.custom_headers ?? null,
     })
     setCustomHeadersText(JSON.stringify(s.custom_headers || {}, null, 2))
@@ -532,6 +534,9 @@ export default function SiteDetail() {
                 <InheritNumber label={t('TTL (Sekunden, Fallback)')} value={form.cache_ttl} onChange={v=>setForm({...form,cache_ttl:v})} templateValue={tmpl?.cache_ttl} />
                 <InheritNumber label={t('Max. Objektgröße (KB)')} value={form.cache_max_object_kb} onChange={v=>setForm({...form,cache_max_object_kb:v})} templateValue={tmpl?.cache_max_object_kb} />
               </div>
+              <Tri label={t('Upstream-Cache-Regeln ignorieren (Force)')} value={form.cache_force} onChange={v=>setForm({...form,cache_force:v})} templateValue={tmpl?.cache_force} />
+              <Tri label={t('Requests mit Cookie cachen')} value={form.cache_allow_cookie} onChange={v=>setForm({...form,cache_allow_cookie:v})} templateValue={tmpl?.cache_allow_cookie} />
+              <Alert variant="warn">{t('Force ignoriert Cache-Control/Expires des Upstreams; Set-Cookie und Vary (außer Accept-Encoding) verhindern weiterhin das Cachen. Requests mit Cookie werden standardmäßig nicht gecacht.')}</Alert>
               <div className="rounded-lg border border-slate-200 p-4">
                 <div className="text-sm text-slate-600 mb-2">{t('Zwischengespeicherte Antworten dieser Site sofort verwerfen:')}</div>
                 {isNew ? <div className="text-sm text-slate-400">{t('Site zuerst speichern.')}</div> : (
@@ -541,7 +546,7 @@ export default function SiteDetail() {
                   </div>
                 )}
               </div>
-              <Alert variant="info">{t('Globaler Schalter und Standardwerte unter Settings → Response-Cache. Hier steuerst du Cache pro Site (Vererbung vom Template möglich). Die TTL ist nur Fallback: Liefert das Backend Cache-Control (s-maxage/max-age) oder Expires, gilt dessen Frischezeit; no-store/no-cache/private verhindern das Cachen.')}</Alert>
+              <Alert variant="info">{t('Globaler Schalter und Standardwerte unter Settings → Response-Cache. Hier steuerst du Cache pro Site (Vererbung vom Template möglich). Ohne Force gilt die Upstream-Frische (s-maxage/max-age/Expires); no-store/no-cache/private verhindern das Cachen. Mit Force gilt die hier gesetzte TTL.')}</Alert>
             </div>
           )}
 

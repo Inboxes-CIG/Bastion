@@ -57,6 +57,8 @@ type siteRequest struct {
 	CacheEnabled       *bool             `json:"cache_enabled"`
 	CacheTTL           *int              `json:"cache_ttl"`
 	CacheMaxObjectKB   *int              `json:"cache_max_object_kb"`
+	CacheForce         *bool             `json:"cache_force"`
+	CacheAllowCookie   *bool             `json:"cache_allow_cookie"`
 	AuthEnabled        *bool             `json:"auth_enabled"`
 	CustomHeaders      map[string]string `json:"custom_headers"`
 }
@@ -117,6 +119,8 @@ func (h *SiteHandler) Create(c *gin.Context) {
 		CacheEnabled:               req.CacheEnabled,
 		CacheTTL:                   req.CacheTTL,
 		CacheMaxObjectKB:           req.CacheMaxObjectKB,
+		CacheForce:                 req.CacheForce,
+		CacheAllowCookie:           req.CacheAllowCookie,
 		AuthEnabled:                req.AuthEnabled,
 		CustomHeaders:              customHeaders,
 		Enabled:                    true,
@@ -258,6 +262,8 @@ func (h *SiteHandler) Update(c *gin.Context) {
 	site.CacheEnabled = req.CacheEnabled
 	site.CacheTTL = req.CacheTTL
 	site.CacheMaxObjectKB = req.CacheMaxObjectKB
+	site.CacheForce = req.CacheForce
+	site.CacheAllowCookie = req.CacheAllowCookie
 	site.AuthEnabled = req.AuthEnabled
 	site.CustomHeaders = customHeaders
 

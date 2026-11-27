@@ -700,10 +700,19 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 	if cacheTTL <= 0 {
 		cacheTTL = globalTTL
 	}
+	var tplCacheForce, tplCacheAllowCookie *bool
+	if tmpl != nil {
+		tplCacheForce = tmpl.CacheForce
+		tplCacheAllowCookie = tmpl.CacheAllowCookie
+	}
+	cacheForce := effBool(site.CacheForce, tplCacheForce, false)
+	cacheAllowCookie := effBool(site.CacheAllowCookie, tplCacheAllowCookie, false)
 
 	cacheKey := ""
 	reqNoCache := strings.Contains(strings.ToLower(r.Header.Get("Cache-Control")), "no-cache") || strings.EqualFold(r.Header.Get("Pragma"), "no-cache")
-	if s.Cache != nil && cacheEnabled && r.Method == http.MethodGet && r.Header.Get("Authorization") == "" && !reqNoCache {
+	requestHasCookie := r.Header.Get("Cookie") != ""
+	if s.Cache != nil && cacheEnabled && r.Method == http.MethodGet && r.Header.Get("Authorization") == "" &&
+		!reqNoCache && (cacheAllowCookie || !requestHasCookie) {
 		scheme := "https"
 		if r.TLS == nil {
 			scheme = "http"
@@ -864,7 +873,7 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 		cacheableStatus := (tw.status >= 200 && tw.status < 300 && tw.status != 206) ||
 			(tw.status >= 300 && tw.status <= 308 && tw.status != 304) || tw.status == 404 || tw.status == 410
 		if cacheableStatus && tw.Header().Get("Set-Cookie") == "" && cache.VaryAllowsCaching(tw.Header()) {
-			if ttl, ok := cache.TTLFromHeaders(tw.Header(), cacheTTL); ok {
+			if ttl, ok := cacheTTLDecision(cacheForce, tw.Header(), cacheTTL); ok {
 				s.Cache.Set(cacheKey, site.ID.String(), tw.status, tw.Header(), tw.buf.Bytes(), ttl, cacheMaxObj)
 			}
 		}
@@ -921,6 +930,19 @@ func effInt(siteVal, tmplVal *int, def int) int {
 		return *tmplVal
 	}
 	return def
+}
+
+// cacheTTLDecision returns the TTL for a response. In force mode the upstream
+// Cache-Control/Expires/Pragma headers are ignored and the site/template TTL
+// is used. Set-Cookie, Vary and other safety guards are handled by the caller.
+func cacheTTLDecision(force bool, h http.Header, defaultTTL int) (int, bool) {
+	if force {
+		if defaultTTL <= 0 {
+			return 0, false
+		}
+		return defaultTTL, true
+	}
+	return cache.TTLFromHeaders(h, defaultTTL)
 }
 
 func isWebSocketUpgrade(r *http.Request) bool {

@@ -4,7 +4,7 @@ import { Card, Button, Input, Select, Field, Modal, Table, Toggle, Alert, EmptyS
 import Icon from '../components/Icon.jsx'
 import { t } from '../i18n.js'
 
-const empty = { name:'', description:'', tenant_id:'', upstream_url:'', upstream_host:'', upstream_insecure_skip_verify:false, geoip_enabled:false, geoip_mode:'allow', geoip_countries:[], http2_enabled:true, http3_enabled:false, force_https:true, hsts_enabled:true, hsts_max_age:31536000, websocket_enabled:false, compression_enabled:true, rate_limit_rps:0, rate_limit_burst:0, max_body_size_mb:0, cache_enabled:true, cache_ttl:60, cache_max_object_kb:256, auth_enabled:false, custom_headers:{} }
+const empty = { name:'', description:'', tenant_id:'', upstream_url:'', upstream_host:'', upstream_insecure_skip_verify:false, geoip_enabled:false, geoip_mode:'allow', geoip_countries:[], http2_enabled:true, http3_enabled:false, force_https:true, hsts_enabled:true, hsts_max_age:31536000, websocket_enabled:false, compression_enabled:true, rate_limit_rps:0, rate_limit_burst:0, max_body_size_mb:0, cache_enabled:true, cache_ttl:60, cache_max_object_kb:256, cache_force:false, cache_allow_cookie:false, auth_enabled:false, custom_headers:{} }
 
 export default function Templates() {
   const [items, setItems] = useState(null)
@@ -32,7 +32,7 @@ export default function Templates() {
       http3_enabled:tpl.http3_enabled??false, force_https:tpl.force_https??true, hsts_enabled:tpl.hsts_enabled??true,
       hsts_max_age:tpl.hsts_max_age??31536000, websocket_enabled:tpl.websocket_enabled??false,
       compression_enabled:tpl.compression_enabled??true, rate_limit_rps:tpl.rate_limit_rps??0,
-      rate_limit_burst:tpl.rate_limit_burst??0, max_body_size_mb:tpl.max_body_size_mb??0, cache_enabled:tpl.cache_enabled, cache_ttl:tpl.cache_ttl, cache_max_object_kb:tpl.cache_max_object_kb, auth_enabled:tpl.auth_enabled??false,
+      rate_limit_burst:tpl.rate_limit_burst??0, max_body_size_mb:tpl.max_body_size_mb??0, cache_enabled:tpl.cache_enabled, cache_ttl:tpl.cache_ttl, cache_max_object_kb:tpl.cache_max_object_kb, cache_force:tpl.cache_force??false, cache_allow_cookie:tpl.cache_allow_cookie??false, auth_enabled:tpl.auth_enabled??false,
       custom_headers:tpl.custom_headers||{},
     })
     setCustomHeadersText(JSON.stringify(tpl.custom_headers || {}, null, 2))
@@ -125,6 +125,8 @@ export default function Templates() {
           <Toggle checked={form.hsts_enabled} onChange={v=>setForm({...form,hsts_enabled:v})} label="HSTS" />
           <Toggle checked={form.websocket_enabled} onChange={v=>setForm({...form,websocket_enabled:v})} label="WebSocket" />
           <Toggle checked={form.compression_enabled} onChange={v=>setForm({...form,compression_enabled:v})} label={t('Compression')} />
+          <Toggle checked={form.cache_force} onChange={v=>setForm({...form,cache_force:v})} label={t('Cache-Regeln ignorieren')} />
+          <Toggle checked={form.cache_allow_cookie} onChange={v=>setForm({...form,cache_allow_cookie:v})} label={t('Cookies cachen')} />
           <Toggle checked={form.auth_enabled===true} onChange={v=>setForm({...form,auth_enabled:v})} label={t('Auth (Basic)')} />
           <Toggle checked={form.upstream_insecure_skip_verify} onChange={v=>setForm({...form,upstream_insecure_skip_verify:v})} label={t('Upstream TLS ignorieren')} />
         </div>

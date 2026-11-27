@@ -69,6 +69,8 @@ type SiteTemplate struct {
 	CacheEnabled               *bool             `json:"cache_enabled"`
 	CacheTTL                   *int              `json:"cache_ttl"`
 	CacheMaxObjectKB           *int              `json:"cache_max_object_kb"`
+	CacheForce                 *bool             `json:"cache_force"`
+	CacheAllowCookie           *bool             `json:"cache_allow_cookie"`
 	AuthEnabled                *bool             `json:"auth_enabled"`
 	CustomHeaders              map[string]string `gorm:"serializer:json;type:jsonb" json:"custom_headers"`
 
@@ -107,6 +109,8 @@ type Site struct {
 	CacheEnabled               *bool             `json:"cache_enabled"`
 	CacheTTL                   *int              `json:"cache_ttl"`
 	CacheMaxObjectKB           *int              `json:"cache_max_object_kb"`
+	CacheForce                 *bool             `json:"cache_force"`
+	CacheAllowCookie           *bool             `json:"cache_allow_cookie"`
 	AuthEnabled                *bool             `json:"auth_enabled"`
 	CustomHeaders              map[string]string `gorm:"serializer:json;type:jsonb" json:"custom_headers"`
 

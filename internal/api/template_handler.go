@@ -70,6 +70,8 @@ type templateRequest struct {
 	CacheEnabled               *bool             `json:"cache_enabled"`
 	CacheTTL                   *int              `json:"cache_ttl"`
 	CacheMaxObjectKB           *int              `json:"cache_max_object_kb"`
+	CacheForce                 *bool             `json:"cache_force"`
+	CacheAllowCookie           *bool             `json:"cache_allow_cookie"`
 	AuthEnabled                *bool             `json:"auth_enabled"`
 	CustomHeaders              map[string]string `json:"custom_headers"`
 }
@@ -139,6 +141,8 @@ func (h *TemplateHandler) Create(c *gin.Context) {
 		CacheEnabled:               req.CacheEnabled,
 		CacheTTL:                   req.CacheTTL,
 		CacheMaxObjectKB:           req.CacheMaxObjectKB,
+		CacheForce:                 req.CacheForce,
+		CacheAllowCookie:           req.CacheAllowCookie,
 		AuthEnabled:                req.AuthEnabled,
 		CustomHeaders:              customHeaders,
 	}
@@ -211,6 +215,8 @@ func (h *TemplateHandler) Update(c *gin.Context) {
 	t.CacheEnabled = req.CacheEnabled
 	t.CacheTTL = req.CacheTTL
 	t.CacheMaxObjectKB = req.CacheMaxObjectKB
+	t.CacheForce = req.CacheForce
+	t.CacheAllowCookie = req.CacheAllowCookie
 	t.AuthEnabled = req.AuthEnabled
 	t.CustomHeaders = customHeaders
 
