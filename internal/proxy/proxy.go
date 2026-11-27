@@ -268,6 +268,13 @@ func normalizeLocationPrefix(p string) (string, error) {
 	return p, nil
 }
 
+func remoteIP(r *http.Request) string {
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return host
+	}
+	return r.RemoteAddr
+}
+
 func getClientIP(r *http.Request) string {
 	ip := r.RemoteAddr
 	if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
@@ -325,6 +332,8 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 		Proto:     r.Proto,
 	}
 	allowed := false
+	peerIP := remoteIP(r)
+	incomingForwarded := r.Header.Get("X-Forwarded-For") != "" || r.Header.Get("X-Real-IP") != ""
 	defer func() {
 		entry.Status = sw.status
 		entry.Bytes = sw.bytes
@@ -336,9 +345,11 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 			if entry.Admin {
 				// Admin hosts are normally exempt from IP blocks to avoid
 				// locking out operators, but unauthenticated 404 probes
-				// should still feed the auto-ban detector.
-				if r.Header.Get("Authorization") == "" && (s.IPList == nil || !s.IPList.IsAllowed(entry.ClientIP)) {
-					s.AutoBan.Observe(entry.ClientIP, entry.Status, false, false)
+				// should still feed the auto-ban detector. Use the real peer
+				// IP and skip spoofable forwarding headers.
+				if !incomingForwarded && r.Header.Get("Authorization") == "" &&
+					(s.IPList == nil || !s.IPList.IsAllowed(peerIP)) {
+					s.AutoBan.Observe(peerIP, entry.Status, false, false)
 				}
 			} else if !allowed {
 				s.AutoBan.Observe(entry.ClientIP, entry.Status, false, allowed)
@@ -352,7 +363,7 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) {
 	if s.isAdminHost(host) {
 		entry.Domain = "(admin)"
 		entry.Admin = true
-		if s.IPList != nil && s.IPList.IsAutoBanned(entry.ClientIP) {
+		if s.IPList != nil && s.IPList.IsAutoBanned(peerIP) {
 			entry.Blocked = true
 			entry.BlockReason = "auto_ban"
 			denyAdmin(sw, r)
